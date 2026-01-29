@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+.npm
+
+# Environment files with secrets
+.env
+*.env.local
+
+# Build outputs
+dist/
+build/
+*.log
+
+# Docker volumes (local data)
+minecraft-server/world/
+minecraft-server/mods/*.jar
+backups/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Old files from non-Docker setup
+forge-*.jar
+server.jar
+libraries/
+crash-reports/
+lost+found/
+patchouli_books/
+*.jar
+!minecraft-server/*.sh

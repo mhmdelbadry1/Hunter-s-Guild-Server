@@ -1,0 +1,211 @@
+/* Combined container with background image & flex centering */
+.login-container {
+    background: linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.5) 80%), url('../assets/4401860.jpg') no-repeat center center fixed;
+    background-size: cover;
+    font-family: 'Minecraft', sans-serif;
+    position: relative;
+    overflow: hidden;
+    overflow-y: none;
+    display: flex;
+    margin: 12px;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 96vh;
+    z-index: 1;
+    border-radius: 15px;
+  }
+  
+  /* Particles container for Login (isolated) */
+  .particles-login {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: -1;
+  }
+  
+  /* Styling for individual login particles */
+  .particle-login {
+    position: absolute;
+    bottom: -10px;
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: 50%;
+    opacity: 0;
+    animation: floatUp 5s infinite;
+  }
+  
+  /* Different particle positions, sizes, and delays for login particles */
+  .particles-login .particle-login:nth-child(1) {
+    left: 10%;
+    width: 4px;
+    height: 4px;
+    animation-delay: 0s;
+  }
+  .particles-login .particle-login:nth-child(2) {
+    left: 25%;
+    width: 6px;
+    height: 6px;
+    animation-delay: 1s;
+  }
+  .particles-login .particle-login:nth-child(3) {
+    left: 40%;
+    width: 3px;
+    height: 3px;
+    animation-delay: 0.5s;
+  }
+  .particles-login .particle-login:nth-child(4) {
+    left: 55%;
+    width: 5px;
+    height: 5px;
+    animation-delay: 1.5s;
+  }
+  .particles-login .particle-login:nth-child(5) {
+    left: 70%;
+    width: 4px;
+    height: 4px;
+    animation-delay: 0.8s;
+  }
+  .particles-login .particle-login:nth-child(6) {
+    left: 85%;
+    width: 6px;
+    height: 6px;
+    animation-delay: 1.2s;
+  }
+  
+  /* Keyframes for floating particles */
+  @keyframes floatUp {
+    0% {
+      transform: translateY(0);
+      opacity: 0;
+    }
+    10% {
+      opacity: 0.8;
+    }
+    100% {
+      transform: translateY(-110vh);
+      opacity: 0;
+    }
+  }
+  
+  /* Modern, transparent, and larger login box with glass effect */
+  .login-box {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(5px);
+    padding: 40px;
+    height: 350px;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    width: 700px;
+    border: 1px solid rgba(9, 11, 12, 0.4);
+    transform: translateY(-80px);
+    transition: transform 0.3s ease;
+  }
+  
+  /* Left column: text content */
+  .login-text {
+    flex: 1;
+    text-align: left;
+    padding-right: 20px;
+  }
+  .login-text h2 {
+    color: #bbb3b3;
+    font-size: 28px;
+    font-family: 'Press Start 2P', cursive;
+    margin-bottom: 20px;
+  }
+  .login-text p {
+    color: #ccc;
+    font-size: 16px;
+    font-weight: 750;
+    font-family: 'Courier New', Courier, monospace;
+  }
+  
+  /* Right column: form */
+  .login-form {
+    flex: 1;
+    width: 80%;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+  }
+  
+  .input-field {
+    width: 100%;
+    padding: 10px 0;
+    margin-bottom: 20px;
+    border: none;
+    border-bottom: 1px solid #aaa;
+    background: transparent;
+    color: #fff;
+    font-size: 16px;
+    outline: none;
+    transition: border-color 0.3s;
+  }
+  .input-field:focus {
+    border-bottom: 1px solid #00aaff;
+  }
+  .login-btn {
+    width: 100%;
+    padding: 12px;
+    background-color: #0f0e0e;
+    color: #fff;
+    border: 1px solid #363d40;
+    font-size: 20px;
+    font-weight: bold;
+    cursor: pointer;
+    border-radius: 5px;
+    transition: background 0.3s, box-shadow 0.3s;
+    display: block;
+  }
+  .login-btn:hover {
+    background-color: #111;
+    box-shadow: 0 0 10px #00aaff;
+  }
+  
+  /* Logo styling with a dramatic blue drop shadow */
+  .logo {
+    max-width: 90%;
+    width: 600px;
+    height: auto;
+    margin-bottom: 20px;
+    transform: translateY(-60px);
+    filter: drop-shadow(0 0 50px rgb(6, 6, 21));
+    transition: filter 0.3s;
+  }
+  .logo:hover {
+    filter: drop-shadow(0 0 80px rgba(173, 216, 230, 0.32));
+  }
+  
+  /* Responsive adjustments for small screens */
+  @media (max-width: 480px) {
+    .login-box {
+      flex-direction: column;
+      width: 90%;
+      padding: 20px;
+    }
+    .login-text, .login-form {
+      width: 100%;
+      align-items: center;
+      text-align: center;
+    }
+    .logo {
+      width: 300px;
+    }
+    .login-text h2 {
+      font-size: 20px;
+    }
+    .input-field {
+      font-size: 14px;
+    }
+    .login-btn {
+      font-size: 16px;
+    }
+  }
+  

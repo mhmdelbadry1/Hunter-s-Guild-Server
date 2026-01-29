@@ -1,0 +1,224 @@
+.version-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+
+.version-modal {
+  background: linear-gradient(145deg, #1a1a2e, #16213e);
+  border-radius: 16px;
+  padding: 2rem;
+  max-width: 500px;
+  width: 90%;
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.version-modal h3 {
+  margin: 0 0 1.5rem;
+  font-size: 1.5rem;
+  color: #fff;
+}
+
+.version-modal .close-modal {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 1.5rem;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.version-modal .close-modal:hover {
+  color: #fff;
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #aaa;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.type-buttons {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.type-btn {
+  padding: 0.75rem 1.25rem;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  background: transparent;
+  color: #ccc;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-weight: 500;
+}
+
+.type-btn:hover {
+  border-color: #4ade80;
+  color: #4ade80;
+}
+
+.type-btn.active {
+  background: linear-gradient(135deg, #4ade80, #22c55e);
+  border-color: transparent;
+  color: #000;
+}
+
+.version-select {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: #fff;
+  font-size: 1rem;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='white' viewBox='0 0 24 24'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 1.5rem;
+}
+
+.version-select:focus {
+  outline: none;
+  border-color: #4ade80;
+}
+
+.version-select option {
+  background: #1a1a2e;
+  color: #fff;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+  margin-top: 2rem;
+}
+
+.cancel-btn {
+  background: transparent;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  color: #ccc;
+}
+
+.cancel-btn:hover {
+  border-color: #fff;
+  color: #fff;
+}
+
+.apply-btn {
+  background: linear-gradient(135deg, #4ade80, #22c55e);
+  border: none;
+  color: #000;
+  font-weight: 600;
+}
+
+.apply-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px rgba(74, 222, 128, 0.4);
+}
+
+.apply-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.loading, .error {
+  text-align: center;
+  padding: 2rem;
+  color: #aaa;
+}
+
+.error {
+  color: #f87171;
+}
+
+/* Properties Editor Styles */
+.properties-modal {
+  max-width: 800px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.properties-form {
+  overflow-y: auto;
+  flex: 1;
+  padding-right: 0.5rem;
+}
+
+.properties-form::-webkit-scrollbar {
+  width: 8px;
+}
+
+.properties-form::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.properties-form::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+.section-title {
+  color: #4ade80;
+  border-bottom: 1px solid rgba(74, 222, 128, 0.3);
+  padding-bottom: 0.5rem;
+  margin: 1.5rem 0 1rem;
+  font-size: 1.1rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.section-title:first-child {
+  margin-top: 0;
+}
+
+.prop-key {
+  color: #666;
+  font-size: 0.8rem;
+  margin-left: 0.5rem;
+  font-family: monospace;
+}
+
+.prop-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: #fff;
+  font-size: 1rem;
+  transition: all 0.2s;
+}
+
+.prop-input:focus {
+  outline: none;
+  border-color: #4ade80;
+  background: rgba(255, 255, 255, 0.1);
+}

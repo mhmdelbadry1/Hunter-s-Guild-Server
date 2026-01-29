@@ -1,0 +1,17 @@
+
+#Single Player Sleep Mod settings
+[settings]
+	#Defines the sleep message to be displayed when a player sleeps.
+	#%1$s is a placeholder for the sleeping player's name.
+	str_SleepMessage = "%1$s went to bed. Sweet dreams!"
+	#Enable or Disable this mod
+	bool_Enabled = true
+	#Should SPS log debug information in the console/log?
+	bool_Devug = false
+	#Define the length of time to delay in ticks before changing the time.
+	#300(15 seconds) is default, as it is just over the vanilla length for single player.
+	#Range: > 20
+	int_SleepLength = 300
+	#Should SPS cancel sleep if the player exits the bed?
+	bool_CancelOnExit = true
+

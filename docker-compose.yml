@@ -1,0 +1,115 @@
+version: "3.9"
+
+services:
+  # ===== Minecraft Server =====
+  minecraft:
+    build:
+      context: ./minecraft-server
+      dockerfile: Dockerfile
+    container_name: minecraft-server
+    restart: unless-stopped
+    environment:
+      - MC_VERSION=${MC_VERSION:-1.21.8}
+      - SERVER_TYPE=${SERVER_TYPE:-forge}
+      - FORGE_VERSION=${FORGE_VERSION:-}
+      - FABRIC_LOADER_VERSION=${FABRIC_LOADER_VERSION:-}
+      - MEMORY=${MC_MEMORY:-4G}
+      - MOTD=${MOTD:-Hunter's Guild Minecraft Server}
+      - TZ=${TZ:-UTC}
+      - EULA=TRUE
+    volumes:
+      - minecraft-world:/server/world
+      - minecraft-mods:/server/mods
+      - minecraft-config:/server/config
+      - ./minecraft-server/server.properties:/server/server.properties
+
+    ports:
+      - "${SERVER_PORT:-25565}:25565"
+    stdin_open: true
+    tty: true
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 25565 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    networks:
+      - mc-network
+
+  # ===== Backend API =====
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: mc-api
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - JWT_SECRET=${JWT_SECRET}
+      - SESSION_SECRET=${SESSION_SECRET:-minecraft-session}
+      - ADMIN_EMAIL=${ADMIN_EMAIL}
+      - ADMIN_PASS=${ADMIN_PASS}
+      - MC_CONTAINER_NAME=minecraft-server
+      - BACKUP_ENABLED=${BACKUP_ENABLED:-true}
+      - GDRIVE_REMOTE=${GDRIVE_REMOTE:-}
+      - GDRIVE_FOLDER=${GDRIVE_FOLDER:-minecraft-backups}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - minecraft-world:/server/world
+      - minecraft-mods:/server/mods
+      - minecraft-config:/server/config
+      - ./minecraft-server/server.properties:/server/server.properties
+
+      - backups:/backups
+    depends_on:
+      - minecraft
+    networks:
+      - mc-network
+
+  # ===== Frontend =====
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - REACT_APP_API_URL=/api
+    container_name: mc-frontend
+    restart: unless-stopped
+    depends_on:
+      - api
+    networks:
+      - mc-network
+
+  # ===== Reverse Proxy (Caddy - Auto SSL) =====
+  caddy:
+    image: caddy:2-alpine
+    container_name: mc-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "3000:80"
+      - "443:443"
+    environment:
+      - DOMAIN=${DOMAIN:-localhost}
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - frontend
+      - api
+    networks:
+      - mc-network
+
+networks:
+  mc-network:
+    driver: bridge
+
+volumes:
+  minecraft-world:
+  minecraft-mods:
+  minecraft-config:
+  backups:
+  caddy-data:
+  caddy-config:

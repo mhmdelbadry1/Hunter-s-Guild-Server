@@ -1,0 +1,74 @@
+version: "3.9"
+
+# Development mode - hot reload for frontend and API
+
+services:
+  # ===== Minecraft Server =====
+  minecraft:
+    build:
+      context: ./minecraft-server
+      dockerfile: Dockerfile
+    container_name: minecraft-server
+    environment:
+      - MC_VERSION=${MC_VERSION:-1.21.8}
+      - SERVER_TYPE=${SERVER_TYPE:-forge}
+      - MEMORY=${MC_MEMORY:-2G}
+      - EULA=TRUE
+    volumes:
+      - ./minecraft-server/world:/server/world
+      - ./minecraft-server/mods:/server/mods
+      - ./minecraft-server/config:/server/config
+    ports:
+      - "${SERVER_PORT:-25565}:25565"
+    stdin_open: true
+    tty: true
+    networks:
+      - mc-network
+
+  # ===== Backend API (Dev mode with hot reload) =====
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: mc-api
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - JWT_SECRET=${JWT_SECRET:-dev-secret}
+      - ADMIN_EMAIL=${ADMIN_EMAIL:-admin@example.com}
+      - ADMIN_PASS=${ADMIN_PASS:-password}
+      - MC_CONTAINER_NAME=minecraft-server
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./api:/app
+      - /app/node_modules
+      - ./minecraft-server:/server
+    command: npm run dev
+    ports:
+      - "3001:3001"
+    depends_on:
+      - minecraft
+    networks:
+      - mc-network
+
+  # ===== Frontend (Dev mode) =====
+  frontend:
+    image: node:20-alpine
+    container_name: mc-frontend-dev
+    working_dir: /app
+    environment:
+      - REACT_APP_API_URL=http://localhost:3001/api
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    command: sh -c "npm install && npm start"
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    networks:
+      - mc-network
+
+networks:
+  mc-network:
+    driver: bridge
