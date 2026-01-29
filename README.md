@@ -1,104 +1,85 @@
-# Hunter's Guild - Minecraft Server Platform
+# 🏹 Hunter's Guild - Minecraft Server Platform
 
-A self-hosted, Docker-based Minecraft server management platform with dynamic version support.
+A powerful, automated, and easy-to-use Minecraft server management platform. Designed for hunters who want to host servers without the headache of manual configuration.
 
-## 🚀 Quick Start
+![Hunter's Guild Banner](frontend/src/assets/Hunter-X-Hunter-Logo-PNG-Image.png)
 
+## ✨ Features
+-   **🚀 One-Click Setup**: Everything runs in Docker. No need to install Java or databases manually.
+-   **🎯 Dynamic Version Support**: Switch between **Vanilla** and **Forge** directly from the web dashboard.
+-   **📦 Auto-Installer**: The server automatically downloads Mojang jars and installs Forge libraries for you.
+-   **🛡️ IP Persistence (DuckDNS)**: Built-in container that automatically updates your DuckDNS IP every 15 minutes.
+-   **💾 Automated Backups**: Integrated backup system to keep your worlds safe.
+-   **💻 Web Control Panel**: Beautiful, modern dashboard to view logs, kick players, and manage files.
+-   **☕ Java 21 Ready**: Optimized for Minecraft 1.21+ while remaining backward compatible.
+
+---
+
+## 🚀 Quick Start (Host on any machine)
+
+### 1. Prerequisites
+-   Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Windows/Mac/Linux).
+
+### 2. Setup
+Clone this repository and create your configuration file:
 ```bash
-# 1. Clone or copy this project
-# 2. Configure environment
+# Copy the environment template
 cp .env.example .env
-# Edit .env with your settings
-
-# 3. Start everything
-docker compose up -d
-
-# 4. Access the panel
-# Local: http://localhost
-# Production: https://your-domain.com
 ```
 
-## 📁 Project Structure
+### 3. Configure
+Open `.env` and fill in these key settings:
+-   `MC_MEMORY`: How much RAM (e.g., `4G`, `8G`).
+-   `ADMIN_PASS`: Your password for the web dashboard.
+-   `DUCKDNS_DOMAIN`: Your DuckDNS sub-domain (e.g., `my-cool-server`).
+-   `DUCKDNS_TOKEN`: Your DuckDNS token.
 
-```
-├── docker-compose.yml      # Main orchestration
-├── docker-compose.dev.yml  # Development mode
-├── .env.example            # Configuration template
-│
-├── api/                    # Backend API service
-├── frontend/               # React control panel
-├── minecraft-server/       # MC server container
-├── caddy/                  # Reverse proxy (auto-SSL)
-└── scripts/                # Helper scripts
-```
-
-## 🎮 Supported Server Types
-
-| Type | Description |
-|------|-------------|
-| `vanilla` | Official Mojang server |
-| `paper` | High-performance Spigot fork |
-| `forge` | Mod loader for Forge mods |
-| `fabric` | Lightweight mod loader |
-
-## ⚙️ Configuration
-
-All configuration is done via environment variables in `.env`:
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `MC_VERSION` | Minecraft version | `1.21.8` |
-| `SERVER_TYPE` | Server type | `forge` |
-| `MC_MEMORY` | RAM allocation | `4G` |
-| `DOMAIN` | Your domain (empty for localhost) | - |
-| `ADMIN_EMAIL` | Admin login email | - |
-| `ADMIN_PASS` | Admin password | - |
-
-## 🔧 Common Operations
-
+### 4. Deploy
+Run the entire platform with one command:
 ```bash
-# View logs
-docker compose logs -f minecraft
-
-# Stop all services
-docker compose down
-
-# Rebuild after changes
-docker compose build --no-cache
-
-# Change MC version
-# Edit MC_VERSION in .env, then:
-docker compose up -d minecraft
-
-# Backup world
-docker compose exec minecraft /backup.sh
+docker-compose up -d
 ```
 
-## 🔒 SSL/HTTPS
+---
 
-In production, set `DOMAIN` in `.env` and Caddy will automatically obtain SSL certificates from Let's Encrypt.
+## 🎮 How to Play
 
-## 📦 Volumes
+### For the Host (You):
+Connect using the address: `localhost`
+> **Note**: You might not be able to connect via your DuckDNS link while inside your own house (NAT Loopback). Always use `localhost`.
 
-Data is persisted in Docker volumes:
-- `minecraft-world`: World save data
-- `minecraft-mods`: Installed mods
-- `minecraft-config`: Server configuration
-- `caddy-data`: SSL certificates
+### For your Friends:
+Give them your DuckDNS link: `yourdomain.duckdns.org`
 
-## 🛠️ Development
+---
 
-```bash
-# Start in dev mode (hot reload)
-docker compose -f docker-compose.dev.yml up
+## 🛠️ Dashboard Access
+Access your control panel at:
+-   **Local**: [http://localhost](http://localhost)
+-   **Remote**: [https://yourdomain.duckdns.org](https://yourdomain.duckdns.org)
 
-# Frontend only
-cd frontend && npm start
+**Features in the Panel:**
+-   **Console**: Run commands (RCON) and see real-time logs.
+-   **Player Management**: See who is online and kick griefers.
+-   **Version Selector**: Change versions and rebuild the server in seconds.
+-   **File Browser**: Edit `server.properties` and manage mods.
 
-# API only
-cd api && npm run dev
-```
+---
+
+## 📂 Project Structure
+-   `api/`: Node.js backend handling RCON and Docker management.
+-   `frontend/`: React-based modern dashboard.
+-   `minecraft-server/`: The core Minecraft container with auto-download scripts.
+-   `duckdns/`: Automated IP updater service.
+-   `caddy/`: Secure reverse proxy with automated SSL.
+
+---
+
+## 🔒 Security Note
+This platform uses **Caddy** to automatically handle SSL certificates for your domain. If you are hosting from home, ensure port **80**, **443**, and **25565** are forwarded in your router settings.
+
+---
 
 ## 📝 License
-
-MIT License - Hunter's Guild © 2025
+Created for the Hunter's Guild community. 🏹
+🛡️ **Built by Mohamed Elbadry**
