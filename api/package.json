@@ -17,6 +17,8 @@
     "jsonwebtoken": "^9.0.2",
     "minecraft-server-util": "^5.4.4",
     "multer": "^1.4.5-lts.1",
-    "socket.io": "^4.8.1"
+    "socket.io": "^4.8.1",
+    "rcon-client": "^4.2.3",
+    "axios": "^1.6.7"
   }
 }

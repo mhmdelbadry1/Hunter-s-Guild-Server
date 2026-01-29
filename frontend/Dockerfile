@@ -31,7 +31,10 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=builder /app/build /usr/share/nginx/html
 
 # Add script to inject runtime config
+# Add script to inject runtime config
 COPY docker-entrypoint.sh /docker-entrypoint.sh
+# Fix Windows line endings
+RUN apk add --no-cache dos2unix && dos2unix /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 
 # Expose port

@@ -1,64 +1,70 @@
-import React, { useEffect, useRef } from 'react';
-import * as THREE from 'three';
+import React, { useEffect, useRef } from "react";
+import * as THREE from "three";
 
 const HeroBanner = () => {
-    const containerRef = useRef(null);
-    // Use refs for mutable variables to avoid re-initialization issues in useEffect
-    const requestRef = useRef();
-    const uniformsRef = useRef({});
+  const containerRef = useRef(null);
+  // Use refs for mutable variables to avoid re-initialization issues in useEffect
+  const requestRef = useRef();
+  const uniformsRef = useRef({});
 
-    useEffect(() => {
-        if (!containerRef.current) return;
+  useEffect(() => {
+    if (!containerRef.current) return;
 
-        let camera, scene, renderer;
-        let uniforms;
-        const container = containerRef.current;
-        
-        // Mouse state
-        let newmouse = { x: 0, y: 0 };
-        
-        // Texture loader
-        const loader = new THREE.TextureLoader();
-        loader.setCrossOrigin("anonymous");
-        
-        // Initialize Scene
-        function init(texture) {
-            camera = new THREE.Camera();
-            camera.position.z = 1;
+    let camera, scene, renderer;
+    let uniforms;
+    const container = containerRef.current;
 
-            scene = new THREE.Scene();
+    // Mouse state
+    let newmouse = { x: 0, y: 0 };
 
-            const geometry = new THREE.PlaneGeometry(2, 2);
+    // Texture loader
+    const loader = new THREE.TextureLoader();
+    loader.setCrossOrigin("anonymous");
 
-            // Render Targets for feedback loop
-            const w = container.clientWidth;
-            const h = container.clientHeight;
-            const textureFraction = 1;
+    // Initialize Scene
+    function init(texture) {
+      camera = new THREE.Camera();
+      camera.position.z = 1;
 
-            let rtTexture = new THREE.WebGLRenderTarget(w * textureFraction, h * textureFraction);
-            let rtTexture2 = new THREE.WebGLRenderTarget(w * textureFraction, h * textureFraction);
+      scene = new THREE.Scene();
 
-            uniforms = {
-                u_time: { type: "f", value: 1.0 },
-                u_resolution: { type: "v2", value: new THREE.Vector2() },
-                u_noise: { type: "t", value: texture },
-                u_buffer: { type: "t", value: rtTexture.texture },
-                u_mouse: { type: "v3", value: new THREE.Vector3() },
-                u_frame: { type: "i", value: -1 },
-                u_renderpass: { type: 'b', value: false }
-            };
-            
-            // Store uniforms in ref to access in render loop
-            uniformsRef.current = { uniforms, rtTexture, rtTexture2 };
+      const geometry = new THREE.PlaneGeometry(2, 2);
 
-            // Shader Code
-            const vertexShader = `
+      // Render Targets for feedback loop
+      const w = container.clientWidth;
+      const h = container.clientHeight;
+      const textureFraction = 1;
+
+      let rtTexture = new THREE.WebGLRenderTarget(
+        w * textureFraction,
+        h * textureFraction,
+      );
+      let rtTexture2 = new THREE.WebGLRenderTarget(
+        w * textureFraction,
+        h * textureFraction,
+      );
+
+      uniforms = {
+        u_time: { type: "f", value: 1.0 },
+        u_resolution: { type: "v2", value: new THREE.Vector2() },
+        u_noise: { type: "t", value: texture },
+        u_buffer: { type: "t", value: rtTexture.texture },
+        u_mouse: { type: "v3", value: new THREE.Vector3() },
+        u_frame: { type: "i", value: -1 },
+        u_renderpass: { type: "b", value: false },
+      };
+
+      // Store uniforms in ref to access in render loop
+      uniformsRef.current = { uniforms, rtTexture, rtTexture2 };
+
+      // Shader Code
+      const vertexShader = `
                 void main() {
                     gl_Position = vec4( position, 1.0 );
                 }
             `;
 
-            const fragmentShader = `
+      const fragmentShader = `
                 precision highp float;
                 
                 uniform vec2 u_resolution;
@@ -136,14 +142,14 @@ const HeroBanner = () => {
 
                 void main() {
                     vec2 uv = (gl_FragCoord.xy - 0.5 * u_resolution.xy) / min(u_resolution.y, u_resolution.x);
-                    vec2 sample = gl_FragCoord.xy / u_resolution.xy;
+                    vec2 texCoord = gl_FragCoord.xy / u_resolution.xy;
 
-                    vec4 fragcolour;
+                    vec4 fragcolour = vec4(0.0, 0.0, 0.0, 1.0);
 
                     if(u_renderpass == true) {
                         // Feedback loop
                         if(u_frame > 5) {
-                            fragcolour = texture2D(u_buffer, sample) * 6.;
+                            fragcolour = texture2D(u_buffer, texCoord) * 6.;
                         }
                         uv *= rotate2d(u_time*.5);
 
@@ -160,166 +166,173 @@ const HeroBanner = () => {
 
                         fragcolour *= 1./opacity_sum;
                     } else {
-                        fragcolour = texture2D(u_buffer, sample) * 5.;
+                        fragcolour = texture2D(u_buffer, texCoord) * 5.;
                     }
 
                     gl_FragColor = fragcolour;
                 }
             `;
 
-            const material = new THREE.ShaderMaterial({
-                uniforms: uniforms,
-                vertexShader: vertexShader,
-                fragmentShader: fragmentShader
-            });
-            material.extensions.derivatives = true;
+      const material = new THREE.ShaderMaterial({
+        uniforms: uniforms,
+        vertexShader: vertexShader,
+        fragmentShader: fragmentShader,
+      });
+      material.extensions.derivatives = true;
 
-            const mesh = new THREE.Mesh(geometry, material);
-            scene.add(mesh);
+      const mesh = new THREE.Mesh(geometry, material);
+      scene.add(mesh);
 
-            try {
-                renderer = new THREE.WebGLRenderer({ alpha: true, antialias: false });
-                renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-                renderer.setSize(container.clientWidth, container.clientHeight);
-                container.appendChild(renderer.domElement);
-            } catch (error) {
-                console.error('WebGL initialization failed:', error);
-                return; // Exit if WebGL fails
-            }
+      try {
+        renderer = new THREE.WebGLRenderer({ alpha: true, antialias: false });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.setSize(container.clientWidth, container.clientHeight);
+        container.appendChild(renderer.domElement);
+      } catch (error) {
+        console.error("WebGL initialization failed:", error);
+        return; // Exit if WebGL fails
+      }
 
-            // Initial resize
-            onWindowResize();
-        }
+      // Initial resize
+      onWindowResize();
+    }
 
-        // Generate Procedural Noise Texture
-        function createNoiseTexture() {
-            const size = 256;
-            const data = new Uint8Array(size * size * 4);
-            for (let i = 0; i < size * size * 4; i++) {
-                data[i] = Math.random() * 255;
-            }
-            const texture = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
-            texture.wrapS = THREE.RepeatWrapping;
-            texture.wrapT = THREE.RepeatWrapping;
-            texture.minFilter = THREE.LinearFilter;
-            texture.needsUpdate = true;
-            return texture;
-        }
+    // Generate Procedural Noise Texture
+    function createNoiseTexture() {
+      const size = 256;
+      const data = new Uint8Array(size * size * 4);
+      for (let i = 0; i < size * size * 4; i++) {
+        data[i] = Math.random() * 255;
+      }
+      const texture = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
+      texture.wrapS = THREE.RepeatWrapping;
+      texture.wrapT = THREE.RepeatWrapping;
+      texture.minFilter = THREE.LinearFilter;
+      texture.needsUpdate = true;
+      return texture;
+    }
 
-        // Initialize immediately with generated texture
-        const noiseTex = createNoiseTexture();
-        init(noiseTex);
-        animate();
+    // Initialize immediately with generated texture
+    const noiseTex = createNoiseTexture();
+    init(noiseTex);
+    animate();
 
-        function onWindowResize() {
-            if (!renderer || !container) return;
-            const w = container.clientWidth;
-            const h = container.clientHeight;
-            renderer.setSize(w, h);
-            uniforms.u_resolution.value.x = w; // renderer.domElement.width;
-            uniforms.u_resolution.value.y = h; // renderer.domElement.height;
-            uniforms.u_frame.value = 0;
-            
-            // Re-init render targets on resize
-            const { rtTexture, rtTexture2 }  = uniformsRef.current;
-            if(rtTexture) rtTexture.dispose();
-            if(rtTexture2) rtTexture2.dispose();
-            
-            uniformsRef.current.rtTexture = new THREE.WebGLRenderTarget(w, h);
-            uniformsRef.current.rtTexture2 = new THREE.WebGLRenderTarget(w, h);
-        }
-        
-        // Listeners
-        window.addEventListener('resize', onWindowResize, false);
-        
-        const onPointerMove = (e) => {
-             const ratio = window.innerHeight / window.innerWidth;
-             if(window.innerHeight > window.innerWidth) {
-                newmouse.x = (e.pageX - window.innerWidth / 2) / window.innerWidth;
-                newmouse.y = (e.pageY - window.innerHeight / 2) / window.innerHeight * -1 * ratio;
-             } else {
-                newmouse.x = (e.pageX - window.innerWidth / 2) / window.innerWidth / ratio;
-                newmouse.y = (e.pageY - window.innerHeight / 2) / window.innerHeight * -1;
-             }
-        };
-        document.addEventListener('pointermove', onPointerMove);
+    function onWindowResize() {
+      if (!renderer || !container) return;
+      const w = container.clientWidth;
+      const h = container.clientHeight;
+      renderer.setSize(w, h);
+      uniforms.u_resolution.value.x = w; // renderer.domElement.width;
+      uniforms.u_resolution.value.y = h; // renderer.domElement.height;
+      uniforms.u_frame.value = 0;
 
-        function renderTexture() {
-             const { uniforms, rtTexture, rtTexture2 } = uniformsRef.current;
-             if(!uniforms) return; // Not ready
+      // Re-init render targets on resize
+      const { rtTexture, rtTexture2 } = uniformsRef.current;
+      if (rtTexture) rtTexture.dispose();
+      if (rtTexture2) rtTexture2.dispose();
 
-             // Ping-pong rendering
-             // Save original resolution state
-             const odims = uniforms.u_resolution.value.clone();
-             
-             uniforms.u_buffer.value = rtTexture2.texture;
-             uniforms.u_renderpass.value = true;
-             
-             // Swap refs
-             window.rtTexture = rtTexture; // debug
-             
-             renderer.setRenderTarget(rtTexture);
-             renderer.render(scene, camera);
-             
-             // Return to screen buffer
-             renderer.setRenderTarget(null);
-             
-             // Swap buffers in ref
-             let temp = rtTexture;
-             uniformsRef.current.rtTexture = rtTexture2;
-             uniformsRef.current.rtTexture2 = temp;
+      uniformsRef.current.rtTexture = new THREE.WebGLRenderTarget(w, h);
+      uniformsRef.current.rtTexture2 = new THREE.WebGLRenderTarget(w, h);
+    }
 
-             // Prepare for final render to screen
-             uniforms.u_buffer.value = uniformsRef.current.rtTexture.texture; // use the new 'front' buffer
-             uniforms.u_renderpass.value = false;
-        }
+    // Listeners
+    window.addEventListener("resize", onWindowResize, false);
 
-        function animate(time) {
-            if (!scene || !camera || !renderer) return;
+    const onPointerMove = (e) => {
+      const ratio = window.innerHeight / window.innerWidth;
+      if (window.innerHeight > window.innerWidth) {
+        newmouse.x = (e.pageX - window.innerWidth / 2) / window.innerWidth;
+        newmouse.y =
+          ((e.pageY - window.innerHeight / 2) / window.innerHeight) *
+          -1 *
+          ratio;
+      } else {
+        newmouse.x =
+          (e.pageX - window.innerWidth / 2) / window.innerWidth / ratio;
+        newmouse.y =
+          ((e.pageY - window.innerHeight / 2) / window.innerHeight) * -1;
+      }
+    };
+    document.addEventListener("pointermove", onPointerMove);
 
-            requestRef.current = requestAnimationFrame(animate);
-            
-            const { uniforms } = uniformsRef.current;
-            if (uniforms) {
-                 uniforms.u_frame.value++;
-                 uniforms.u_mouse.value.x += ( newmouse.x - uniforms.u_mouse.value.x ) * (1/8);
-                 uniforms.u_mouse.value.y += ( newmouse.y - uniforms.u_mouse.value.y ) * (1/8);
-                 uniforms.u_time.value = performance.now() * 0.0005;
-            }
-            
-            // First pass: render effect to texture
-            renderTexture();
-            
-            // Second pass: render texture to screen
-            renderer.render(scene, camera);
-        }
+    function renderTexture() {
+      const { uniforms, rtTexture, rtTexture2 } = uniformsRef.current;
+      if (!uniforms) return; // Not ready
 
-        return () => {
-            window.removeEventListener('resize', onWindowResize);
-            document.removeEventListener('pointermove', onPointerMove);
-            if (requestRef.current) cancelAnimationFrame(requestRef.current);
-            if (renderer) {
-                renderer.dispose();
-                container.removeChild(renderer.domElement);
-            }
-        };
-    }, []);
+      // Ping-pong rendering
+      // Save original resolution state
+      const odims = uniforms.u_resolution.value.clone();
 
-    return (
-        <div 
-            id="hero-canvas-container" 
-            ref={containerRef} 
-            style={{
-                width: '100%',
-                height: '100%', // Fill parent
-                position: 'relative',
-                overflow: 'hidden',
-                borderRadius: '8px',
-                marginBottom: '20px',
-                background: '#050505'
-            }}
-        />
-    );
+      uniforms.u_buffer.value = rtTexture2.texture;
+      uniforms.u_renderpass.value = true;
+
+      // Swap refs
+      window.rtTexture = rtTexture; // debug
+
+      renderer.setRenderTarget(rtTexture);
+      renderer.render(scene, camera);
+
+      // Return to screen buffer
+      renderer.setRenderTarget(null);
+
+      // Swap buffers in ref
+      let temp = rtTexture;
+      uniformsRef.current.rtTexture = rtTexture2;
+      uniformsRef.current.rtTexture2 = temp;
+
+      // Prepare for final render to screen
+      uniforms.u_buffer.value = uniformsRef.current.rtTexture.texture; // use the new 'front' buffer
+      uniforms.u_renderpass.value = false;
+    }
+
+    function animate(time) {
+      if (!scene || !camera || !renderer) return;
+
+      requestRef.current = requestAnimationFrame(animate);
+
+      const { uniforms } = uniformsRef.current;
+      if (uniforms) {
+        uniforms.u_frame.value++;
+        uniforms.u_mouse.value.x +=
+          (newmouse.x - uniforms.u_mouse.value.x) * (1 / 8);
+        uniforms.u_mouse.value.y +=
+          (newmouse.y - uniforms.u_mouse.value.y) * (1 / 8);
+        uniforms.u_time.value = performance.now() * 0.0005;
+      }
+
+      // First pass: render effect to texture
+      renderTexture();
+
+      // Second pass: render texture to screen
+      renderer.render(scene, camera);
+    }
+
+    return () => {
+      window.removeEventListener("resize", onWindowResize);
+      document.removeEventListener("pointermove", onPointerMove);
+      if (requestRef.current) cancelAnimationFrame(requestRef.current);
+      if (renderer) {
+        renderer.dispose();
+        container.removeChild(renderer.domElement);
+      }
+    };
+  }, []);
+
+  return (
+    <div
+      id="hero-canvas-container"
+      ref={containerRef}
+      style={{
+        width: "100%",
+        height: "100%", // Fill parent
+        position: "relative",
+        overflow: "hidden",
+        borderRadius: "8px",
+        marginBottom: "20px",
+        background: "#050505",
+      }}
+    />
+  );
 };
 
 export default HeroBanner;

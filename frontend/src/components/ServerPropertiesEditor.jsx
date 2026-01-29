@@ -2,6 +2,12 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { apiUrl } from "../config/api";
 import "../styles/VersionSelector.css"; // Reuse modal styles from VersionSelector
+// Helper to convert properties object to server.properties file format
+function propertiesToFileContent(properties) {
+  return Object.entries(properties)
+    .map(([key, value]) => `${key}=${value}`)
+    .join("\n");
+}
 
 function ServerPropertiesEditor({ onClose, onTriggerRestart }) {
   const [properties, setProperties] = useState({});
@@ -32,14 +38,11 @@ function ServerPropertiesEditor({ onClose, onTriggerRestart }) {
     setSaving(true);
     try {
       const token = localStorage.getItem("jwtToken");
-      await axios.put(
-        apiUrl("/server-properties"),
-        {
-          properties,
-        },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
+      const fileContent = propertiesToFileContent(properties);
+      await axios.post(
+        apiUrl("/server-properties/save"),
+        { content: fileContent },
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       // Prompt for restart
       if (

@@ -1,23 +1,35 @@
-import React, { useEffect, useState } from 'react';
-import axios from 'axios';
-import { CopyToClipboard } from 'react-copy-to-clipboard';
-import blockImg from '../assets/minecraft-blocks.png'; // Image for the random block background
-import { apiUrl } from '../config/api';
+import React, { useEffect, useState } from "react";
+import axios from "axios";
+import { CopyToClipboard } from "react-copy-to-clipboard";
+import blockImg from "../assets/minecraft-blocks.png"; // Image for the random block background
+import { apiUrl } from "../config/api";
 
 // SVG Icons
 const FolderIcon = ({ open }) => (
-  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 16 16"
+    fill="currentColor"
+    style={{ marginRight: "6px", verticalAlign: "middle" }}
+  >
     {open ? (
-      <path d="M.5 3l.5.5.5-.5L1 2.5l-.5-.5-.5.5.5.5zm1 .5L1 3v10l.5.5h13l.5-.5v-8l-.5-.5h-7l-1-1h-5zm.5 1h4.293L7.5 5.707l.707.293H14v7.5H2V4.5z"/>
+      <path d="M.5 3l.5.5.5-.5L1 2.5l-.5-.5-.5.5.5.5zm1 .5L1 3v10l.5.5h13l.5-.5v-8l-.5-.5h-7l-1-1h-5zm.5 1h4.293L7.5 5.707l.707.293H14v7.5H2V4.5z" />
     ) : (
-      <path d="M1.5 1h4l1 1h7l.5.5v10l-.5.5h-13l-.5-.5v-11l.5-.5zM2 2v10h12V3H7.5l-1-1H2z"/>
+      <path d="M1.5 1h4l1 1h7l.5.5v10l-.5.5h-13l-.5-.5v-11l.5-.5zM2 2v10h12V3H7.5l-1-1H2z" />
     )}
   </svg>
 );
 
 const FileIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
-    <path d="M13.5 1h-10l-.5.5v13l.5.5h10l.5-.5v-13l-.5-.5zM13 14H4V2h9v12zM6 4h5v1H6V4zm0 2h5v1H6V6zm0 2h5v1H6V8zm0 2h3v1H6v-1z"/>
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 16 16"
+    fill="currentColor"
+    style={{ marginRight: "6px", verticalAlign: "middle" }}
+  >
+    <path d="M13.5 1h-10l-.5.5v13l.5.5h10l.5-.5v-13l-.5-.5zM13 14H4V2h9v12zM6 4h5v1H6V4zm0 2h5v1H6V6zm0 2h5v1H6V8zm0 2h3v1H6v-1z" />
   </svg>
 );
 
@@ -29,10 +41,14 @@ function FileNode({ node }) {
 
   const toggleExpanded = () => setExpanded(!expanded);
 
-  if (node.type === 'directory') {
+  if (node.type === "directory") {
     return (
       <li>
-        <span onClick={toggleExpanded} className="directory-name" style={{ cursor: 'pointer', userSelect: 'none' }}>
+        <span
+          onClick={toggleExpanded}
+          className="directory-name"
+          style={{ cursor: "pointer", userSelect: "none" }}
+        >
           <FolderIcon open={expanded} /> {node.name}
         </span>
         {expanded && node.children && (
@@ -56,15 +72,27 @@ function FileNode({ node }) {
 }
 
 const CopyIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style={{ marginRight: '4px', verticalAlign: 'middle' }}>
-    <path d="M4 4l1-1h5.414L14 6.586V14l-1 1H5l-1-1V4zm9 3l-3-3H5v10h8V7z"/>
-    <path d="M3 1L2 2v10l1 1V2h6.414l-1-1H3z"/>
+  <svg
+    width="14"
+    height="14"
+    viewBox="0 0 16 16"
+    fill="currentColor"
+    style={{ marginRight: "4px", verticalAlign: "middle" }}
+  >
+    <path d="M4 4l1-1h5.414L14 6.586V14l-1 1H5l-1-1V4zm9 3l-3-3H5v10h8V7z" />
+    <path d="M3 1L2 2v10l1 1V2h6.414l-1-1H3z" />
   </svg>
 );
 
 const CheckIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style={{ marginRight: '4px', verticalAlign: 'middle' }}>
-    <path d="M14.431 3.323l-8.47 10-.79-.036-3.35-4.77.818-.574 2.978 4.24 8.051-9.506.764.646z"/>
+  <svg
+    width="14"
+    height="14"
+    viewBox="0 0 16 16"
+    fill="currentColor"
+    style={{ marginRight: "4px", verticalAlign: "middle" }}
+  >
+    <path d="M14.431 3.323l-8.47 10-.79-.036-3.35-4.77.818-.574 2.978 4.24 8.051-9.506.764.646z" />
   </svg>
 );
 
@@ -81,22 +109,42 @@ function ModernCopyButton({ text }) {
   return (
     <CopyToClipboard text={text} onCopy={onCopy}>
       <button className="copy-button">
-        {copied ? <><CheckIcon /> Copied</> : <><CopyIcon /> Copy</>}
+        {copied ? (
+          <>
+            <CheckIcon /> Copied
+          </>
+        ) : (
+          <>
+            <CopyIcon /> Copy
+          </>
+        )}
       </button>
     </CopyToClipboard>
   );
 }
 
 const DocumentIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
-    <path d="M9 1H4L3 2v12l1 1h8l1-1V5L9 1zM8.5 5.5L12 9H9l-.5-.5V5.5zM4 13V2h4v3.5l.5.5H12v7H4z"/>
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 16 16"
+    fill="currentColor"
+    style={{ marginRight: "6px", verticalAlign: "middle" }}
+  >
+    <path d="M9 1H4L3 2v12l1 1h8l1-1V5L9 1zM8.5 5.5L12 9H9l-.5-.5V5.5zM4 13V2h4v3.5l.5.5H12v7H4z" />
   </svg>
 );
 
 const DownloadIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
-    <path d="M13 9v4H3V9H2v4.5l.5.5h11l.5-.5V9h-1z"/>
-    <path d="M7 10.5l3.5-3.5H9V1H7v6H5.5L9 10.5z"/>
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 16 16"
+    fill="currentColor"
+    style={{ marginRight: "6px", verticalAlign: "middle" }}
+  >
+    <path d="M13 9v4H3V9H2v4.5l.5.5h11l.5-.5V9h-1z" />
+    <path d="M7 10.5l3.5-3.5H9V1H7v6H5.5L9 10.5z" />
   </svg>
 );
 
@@ -149,7 +197,10 @@ function SFTPCredentials({ credentials }) {
         <p>
           <strong>User:</strong> {credentials.username}
         </p>
-        <button onClick={() => setShowModal(true)} className="view-credentials-btn">
+        <button
+          onClick={() => setShowModal(true)}
+          className="view-credentials-btn"
+        >
           <DocumentIcon /> View Credentials
         </button>
       </div>
@@ -157,24 +208,34 @@ function SFTPCredentials({ credentials }) {
       {showModal && (
         <div className="sftp-modal-overlay" onClick={() => setShowModal(false)}>
           <div className="sftp-modal" onClick={(e) => e.stopPropagation()}>
-            <button className="close-modal-btn" onClick={() => setShowModal(false)}>×</button>
+            <button
+              className="close-modal-btn"
+              onClick={() => setShowModal(false)}
+            >
+              ×
+            </button>
             <h2>Full SFTP Credentials</h2>
             <p>
-              <strong>Host:</strong> {credentials.host} <ModernCopyButton text={credentials.host} />
+              <strong>Host:</strong> {credentials.host}{" "}
+              <ModernCopyButton text={credentials.host} />
             </p>
             <p>
-              <strong>User:</strong> {credentials.username} <ModernCopyButton text={credentials.username} />
+              <strong>User:</strong> {credentials.username}{" "}
+              <ModernCopyButton text={credentials.username} />
             </p>
             <p>
-              <strong>Password:</strong> {credentials.password} <ModernCopyButton text={credentials.password} />
+              <strong>Password:</strong> {credentials.password}{" "}
+              <ModernCopyButton text={credentials.password} />
             </p>
             <button
               onClick={() => {
-                const blob = new Blob([credentials.privateKey], { type: 'text/plain' });
+                const blob = new Blob([credentials.privateKey], {
+                  type: "text/plain",
+                });
                 const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
+                const a = document.createElement("a");
                 a.href = url;
-                a.download = 'sftp_private_key';
+                a.download = "sftp_private_key";
                 a.click();
                 URL.revokeObjectURL(url);
               }}
@@ -186,9 +247,16 @@ function SFTPCredentials({ credentials }) {
               <h3>How to Use FileZilla</h3>
               <ol>
                 <li>Open FileZilla and go to Site Manager.</li>
-                <li>Create a new site with Protocol: <strong>SFTP</strong>, Host: <strong>{credentials.host}</strong>, Port: 22.</li>
-                <li>Enter Username: <strong>{credentials.username}</strong>.</li>
-                <li>Select the downloaded private key file for authentication.</li>
+                <li>
+                  Create a new site with Protocol: <strong>SFTP</strong>, Host:{" "}
+                  <strong>{credentials.host}</strong>, Port: 22.
+                </li>
+                <li>
+                  Enter Username: <strong>{credentials.username}</strong>.
+                </li>
+                <li>
+                  Select the downloaded private key file for authentication.
+                </li>
                 <li>Connect and manage your files.</li>
               </ol>
             </div>
@@ -213,26 +281,38 @@ function ServerFilesView({ credentials }) {
   const fetchDirectory = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('jwtToken');
-      const res = await axios.get(apiUrl('/dir'), {
+      const token = localStorage.getItem("jwtToken");
+      const res = await axios.get(apiUrl("/dir"), {
         headers: { Authorization: `Bearer ${token}` },
       });
       const sortedTree = sortDirectoryTree(res.data.directory || []);
       setDirTree(sortedTree);
     } catch (error) {
-      console.error('Error fetching directory:', error);
+      console.error("Error fetching directory:", error);
       // Suppress alert for 401 as the main app will handle logout
       if (error.response && error.response.status === 401) {
         return;
       }
-      alert('Failed to fetch directory');
+      alert("Failed to fetch directory");
     } finally {
       setLoading(false);
     }
   };
 
   const sortDirectoryTree = (tree) => {
-    tree.sort((a, b) => {     if (a.type !== b.type) {       return a.type === 'directory' ? -1 : 1;     }    return a.name.localeCompare(b.name);   });   tree.forEach((node) => {     if (node.type === 'directory' && node.children) {       sortDirectoryTree(node.children);     }   });   return tree; };
+    tree.sort((a, b) => {
+      if (a.type !== b.type) {
+        return a.type === "directory" ? -1 : 1;
+      }
+      return a.name.localeCompare(b.name);
+    });
+    tree.forEach((node) => {
+      if (node.type === "directory" && node.children) {
+        sortDirectoryTree(node.children);
+      }
+    });
+    return tree;
+  };
 
   return (
     <div className="server-files-view">

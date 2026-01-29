@@ -9,14 +9,12 @@ services:
     container_name: minecraft-server
     restart: unless-stopped
     environment:
-      - MC_VERSION=${MC_VERSION:-1.21.8}
-      - SERVER_TYPE=${SERVER_TYPE:-forge}
-      - FORGE_VERSION=${FORGE_VERSION:-}
-      - FABRIC_LOADER_VERSION=${FABRIC_LOADER_VERSION:-}
       - MEMORY=${MC_MEMORY:-4G}
-      - MOTD=${MOTD:-Hunter's Guild Minecraft Server}
       - TZ=${TZ:-UTC}
       - EULA=TRUE
+      - SERVER_TYPE=${SERVER_TYPE:-vanilla}
+      - MC_VERSION=${MC_VERSION:-1.21.8}
+      - FORGE_VERSION=${FORGE_VERSION:-}
     volumes:
       - minecraft-world:/server/world
       - minecraft-mods:/server/mods
@@ -24,7 +22,8 @@ services:
       - ./minecraft-server/server.properties:/server/server.properties
 
     ports:
-      - "${SERVER_PORT:-25565}:25565"
+      - "25565:25565"
+      - "25575:25575"
     stdin_open: true
     tty: true
     healthcheck:
@@ -51,11 +50,15 @@ services:
       - ADMIN_EMAIL=${ADMIN_EMAIL}
       - ADMIN_PASS=${ADMIN_PASS}
       - MC_CONTAINER_NAME=minecraft-server
+      - RCON_HOST=${RCON_HOST:-minecraft}
+      - RCON_PORT=${RCON_PORT:-25575}
+      - RCON_PASSWORD=${RCON_PASSWORD}
       - BACKUP_ENABLED=${BACKUP_ENABLED:-true}
       - GDRIVE_REMOTE=${GDRIVE_REMOTE:-}
       - GDRIVE_FOLDER=${GDRIVE_FOLDER:-minecraft-backups}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./.env:/app/.env
       - minecraft-world:/server/world
       - minecraft-mods:/server/mods
       - minecraft-config:/server/config
@@ -99,6 +102,18 @@ services:
     depends_on:
       - frontend
       - api
+    networks:
+      - mc-network
+
+  # ===== DuckDNS Auto-Updater =====
+  duckdns:
+    build:
+      context: ./duckdns
+    container_name: mc-duckdns
+    restart: unless-stopped
+    environment:
+      - DUCKDNS_DOMAIN=${DUCKDNS_DOMAIN}
+      - DUCKDNS_TOKEN=${DUCKDNS_TOKEN}
     networks:
       - mc-network
 

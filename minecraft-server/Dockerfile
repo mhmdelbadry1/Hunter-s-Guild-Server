@@ -1,5 +1,4 @@
-# Minecraft Server with Dynamic Version Support
-FROM openjdk:17-slim
+FROM eclipse-temurin:21-jre-jammy
 
 # Install required tools
 RUN apt-get update && \
