@@ -18,7 +18,17 @@ A powerful, automated, and easy-to-use Minecraft server management platform. Des
 ## 🚀 Quick Start (Host on any machine)
 
 ### 1. Prerequisites
--   Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Windows/Mac/Linux).
+#### Windows/Mac:
+-   Install [Docker Desktop](https://www.docker.com/products/docker-desktop/).
+
+#### Linux (Ubuntu/Debian):
+Run these commands to install Docker instantly:
+```bash
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
+sudo usermod -aG docker $USER
+# Log out and log back in for changes to take effect!
+```
 
 ### 2. Setup
 Clone this repository and create your configuration file:
@@ -28,14 +38,15 @@ cp .env.example .env
 ```
 
 ### 3. Configure
-Open `.env` and fill in these key settings:
--   `MC_MEMORY`: How much RAM (e.g., `4G`, `8G`).
--   `ADMIN_PASS`: Your password for the web dashboard.
--   `DUCKDNS_DOMAIN`: Your DuckDNS sub-domain (e.g., `my-cool-server`).
--   `DUCKDNS_TOKEN`: Your DuckDNS token.
+Open `.env` and fill in your settings (RAM, Password, DuckDNS token).
 
-### 4. Deploy
-Run the entire platform with one command:
+### 4. Deploy (One-Click)
+Use the provided scripts to start the server automatically:
+
+**Windows:** Double-click `start.bat`
+**Linux:** Run `./start.sh` (or `bash start.sh`)
+
+Alternatively, use the command line:
 ```bash
 docker-compose up -d
 ```
