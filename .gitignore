@@ -40,3 +40,25 @@ lost+found/
 patchouli_books/
 *.jar
 !minecraft-server/*.sh
+
+# Runtime / generated files (should not be committed)
+.env
+.env.*
+banned-ips.json
+banned-players.json
+ops.json
+whitelist.json
+usercache.json
+usernamecache.json
+server.properties
+
+# Docker-compose generated volumes/data
+backups/
+
+# Ignore built frontend bundles (if any)
+frontend/build/
+frontend/dist/
+
+# Lockfiles / OS artifacts
+.DS_Store
+Thumbs.db
