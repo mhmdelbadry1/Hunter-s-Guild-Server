@@ -243,31 +243,6 @@ app.get("/api/status", authenticate, async (req, res) => {
   }
 });
 
-// Helper to send RCON commands
-async function sendRconCommand(command) {
-  const { Rcon } = require("rcon-client");
-  const rconHost = process.env.RCON_HOST || "minecraft-server";
-  const rconPort = parseInt(process.env.RCON_PORT || "25575", 10);
-  const rconPassword = process.env.RCON_PASSWORD || "8a43386e";
-
-  const rcon = new Rcon({
-    host: rconHost,
-    port: rconPort,
-    password: rconPassword,
-    timeout: 10000,
-  });
-
-  try {
-    await rcon.connect();
-    const response = await rcon.send(command);
-    await rcon.end();
-    return response;
-  } catch (error) {
-    if (rcon) try { await rcon.end(); } catch (e) { }
-    throw error;
-  }
-}
-
 // Start server
 app.post("/api/start", authenticate, async (req, res) => {
   try {
@@ -320,17 +295,19 @@ app.post("/api/stop", authenticate, async (req, res) => {
     io.emit("serverStatusUpdate", { action: "stopping" });
     broadcastLog("[System] Stopping server...");
 
-    // Send stop command gracefully via RCON helper
+    // Send stop command gracefully
+    const exec = await container.exec({
+      Cmd: ["rcon-cli", "stop"],
+      AttachStdout: true,
+      AttachStderr: true,
+    });
+
     let rconSuccess = false;
     try {
-      await sendRconCommand("stop");
+      await exec.start();
       broadcastLog("[System] Sent graceful stop command via RCON.");
       rconSuccess = true;
-    } catch (e) {
-      broadcastLog(`[System] RCON stop failed: ${e.message}. Forcing stop...`);
-    }
 
-    if (rconSuccess) {
       // Wait up to 15 seconds for graceful shutdown
       let waited = 0;
       while (waited < 15) {
@@ -342,6 +319,9 @@ app.post("/api/stop", authenticate, async (req, res) => {
         await new Promise((resolve) => setTimeout(resolve, 1000));
         waited++;
       }
+    } catch (e) {
+      // If RCON fails, just stop the container
+      broadcastLog("[System] RCON failed, forcing container stop...");
     }
 
     // If still running, force stop with shorter timeout
@@ -478,7 +458,22 @@ app.post("/api/command", authenticate, async (req, res) => {
   }
 
   try {
-    const response = await sendRconCommand(command);
+    // RCON connection details (container-level exec approach removed)
+    const { Rcon } = require("rcon-client");
+    const rconHost = process.env.RCON_HOST || "minecraft-server";
+    const rconPort = parseInt(process.env.RCON_PORT || "25575", 10);
+    const rconPassword = process.env.RCON_PASSWORD || "8a43386e";
+
+    const rcon = new Rcon({
+      host: rconHost,
+      port: rconPort,
+      password: rconPassword,
+      timeout: 10000, // 10 seconds wait
+    });
+    await rcon.connect();
+    const response = await rcon.send(command);
+    await rcon.end();
+
     io.emit("log", `> ${command}\n[RCON] ${response}`);
     res.json({ message: "Command sent", response });
   } catch (error) {
@@ -500,8 +495,14 @@ app.post("/api/kick", authenticate, async (req, res) => {
 
     const container = docker.getContainer(containerInfo.Id);
 
-    // Execute kick command via RCON helper
-    await sendRconCommand(`kick ${playerName} "Kicked by admin"`);
+    // Execute kick command via RCON
+    const exec = await container.exec({
+      Cmd: ["rcon-cli", "kick", playerName, "Kicked by admin"],
+      AttachStdout: true,
+      AttachStderr: true,
+    });
+
+    await exec.start();
     io.emit("log", `[System] Kicked player: ${playerName}`);
 
     res.json({ message: `Kicked ${playerName}` });
@@ -1024,7 +1025,7 @@ app.put("/api/server-properties", authenticate, (req, res) => {
   }
 });
 
-// Save server.properties 
+// Save server.properties
 app.post("/api/server-properties/save", authenticate, async (req, res) => {
   const { content } = req.body;
   if (!content || typeof content !== "string") {
@@ -1282,6 +1283,235 @@ function ensureQueryEnabled() {
     console.error("[Startup] Error ensuring enable-query:", e.message);
   }
 }
+
+// ===== MODPACK MANAGEMENT =====
+
+const crypto = require("crypto");
+
+// Generate hash for a file
+function getFileHash(filePath) {
+  const content = fs.readFileSync(filePath);
+  return crypto.createHash("sha256").update(content).digest("hex");
+}
+
+// Scan mods folder and generate packwiz metadata
+async function generateModpackManifest() {
+  try {
+    const modsDir = MODS_DIR;
+    const modpackDir = path.join(__dirname, "..", "modpack");
+    
+    // Ensure modpack directory exists
+    if (!fs.existsSync(modpackDir)) {
+      fs.mkdirSync(modpackDir, { recursive: true });
+    }
+
+    // Read current MC version from env
+    const mcVersion = process.env.MC_VERSION || "1.21.1";
+    const forgeVersion = process.env.FORGE_VERSION || "61.0.8";
+    
+    // Scan mods folder
+    const modFiles = fs.existsSync(modsDir) 
+      ? fs.readdirSync(modsDir).filter(f => f.endsWith('.jar'))
+      : [];
+
+    // Generate pack.toml
+    const packToml = `name = "Hunter's Guild Modpack"
+author = "Hunter's Guild Server"
+version = "1.0.0"
+pack-format = "packwiz:1.1.0"
+
+[index]
+file = "index.toml"
+hash-format = "sha256"
+hash = ""
+
+[versions]
+minecraft = "${mcVersion}"
+forge = "${forgeVersion}"
+`;
+
+    // Generate index.toml with mod list
+    let indexToml = `hash-format = "sha256"
+\n[[files]]
+file = "mods/README.txt"
+hash = ""
+\n`;
+
+    // Add each mod to index
+    for (const modFile of modFiles) {
+      const modPath = path.join(modsDir, modFile);
+      const hash = getFileHash(modPath);
+      const modMeta = `[[files]]
+file = "mods/${modFile}"
+hash = "${hash}"
+metafile = true
+
+`;
+      indexToml += modMeta;
+
+      // Create individual mod metadata file
+      const modMetaDir = path.join(modpackDir, "mods");
+      if (!fs.existsSync(modMetaDir)) {
+        fs.mkdirSync(modMetaDir, { recursive: true });
+      }
+
+      const modMetaContent = `name = "${modFile.replace('.jar', '')}"
+filename = "${modFile}"
+side = "both"
+
+[download]
+url = "${process.env.DOMAIN || 'http://localhost'}/api/modpack/download-mod/${encodeURIComponent(modFile)}"
+hash-format = "sha256"
+hash = "${hash}"
+`;
+
+      fs.writeFileSync(
+        path.join(modMetaDir, `${modFile}.pw.toml`),
+        modMetaContent,
+        "utf8"
+      );
+    }
+
+    // Write pack.toml and index.toml
+    fs.writeFileSync(path.join(modpackDir, "pack.toml"), packToml, "utf8");
+    fs.writeFileSync(path.join(modpackDir, "index.toml"), indexToml, "utf8");
+
+    return {
+      success: true,
+      modCount: modFiles.length,
+      mcVersion,
+      forgeVersion,
+      packUrl: `${process.env.DOMAIN || 'http://localhost'}/modpack/pack.toml`
+    };
+  } catch (error) {
+    console.error("Error generating modpack:", error);
+    throw error;
+  }
+}
+
+// Generate modpack
+app.post("/api/modpack/generate", authenticate, async (req, res) => {
+  try {
+    // Check if server is Forge
+    const serverType = process.env.SERVER_TYPE || "vanilla";
+    if (serverType.toLowerCase() !== "forge") {
+      return res.status(400).json({ 
+        error: "Modpack generation is only available for Forge servers",
+        userMessage: "This feature is only available when running a Forge server. Your server is currently set to " + serverType + "."
+      });
+    }
+
+    // Check if mods folder exists and has mods
+    const modsDir = MODS_DIR;
+    if (!fs.existsSync(modsDir)) {
+      return res.status(400).json({ 
+        error: "Mods folder not found",
+        userMessage: "No mods folder found. Please make sure your Forge server is properly set up."
+      });
+    }
+
+    const modFiles = fs.readdirSync(modsDir).filter(f => f.endsWith('.jar'));
+    if (modFiles.length === 0) {
+      return res.status(400).json({ 
+        error: "No mods found",
+        userMessage: "No mods found in the mods folder. Please add at least one mod (.jar file) before generating a modpack."
+      });
+    }
+
+    const result = await generateModpackManifest();
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ 
+      error: error.message,
+      userMessage: "An error occurred while generating the modpack. Please try again."
+    });
+  }
+});
+
+// Get modpack status
+app.get("/api/modpack/status", authenticate, async (req, res) => {
+  try {
+    const serverType = process.env.SERVER_TYPE || "vanilla";
+    const isForge = serverType.toLowerCase() === "forge";
+    
+    const modpackDir = path.join(__dirname, "..", "modpack");
+    const packFile = path.join(modpackDir, "pack.toml");
+    
+    const modsDir = MODS_DIR;
+    const modFiles = fs.existsSync(modsDir)
+      ? fs.readdirSync(modsDir).filter(f => f.endsWith('.jar'))
+      : [];
+
+    if (!fs.existsSync(packFile)) {
+      return res.json({
+        exists: false,
+        modCount: modFiles.length,
+        lastGenerated: null,
+        isForge,
+        serverType,
+        canGenerate: isForge && modFiles.length > 0
+      });
+    }
+
+    const stats = fs.statSync(packFile);
+
+    res.json({
+      exists: true,
+      modCount: modFiles.length,
+      lastGenerated: stats.mtime,
+      packUrl: `${process.env.DOMAIN || 'http://localhost'}/modpack/pack.toml`,
+      isForge,
+      serverType,
+      canGenerate: isForge && modFiles.length > 0
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Serve pack.toml
+app.get("/modpack/pack.toml", (req, res) => {
+  const packFile = path.join(__dirname, "..", "modpack", "pack.toml");
+  if (!fs.existsSync(packFile)) {
+    return res.status(404).send("Modpack not generated yet");
+  }
+  res.sendFile(packFile);
+});
+
+// Serve index.toml
+app.get("/modpack/index.toml", (req, res) => {
+  const indexFile = path.join(__dirname, "..", "modpack", "index.toml");
+  if (!fs.existsSync(indexFile)) {
+    return res.status(404).send("Modpack not generated yet");
+  }
+  res.sendFile(indexFile);
+});
+
+// Serve mod metadata files
+app.get("/modpack/mods/:filename", (req, res) => {
+  const filename = req.params.filename;
+  const modFile = path.join(__dirname, "..", "modpack", "mods", filename);
+  if (!fs.existsSync(modFile)) {
+    return res.status(404).send("Mod metadata not found");
+  }
+  res.sendFile(modFile);
+});
+
+// Download individual mod (for players)
+app.get("/api/modpack/download-mod/:filename", async (req, res) => {
+  try {
+    const filename = decodeURIComponent(req.params.filename);
+    const modPath = path.join(MODS_DIR, filename);
+    
+    if (!fs.existsSync(modPath)) {
+      return res.status(404).json({ error: "Mod not found" });
+    }
+
+    res.download(modPath, filename);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // Start server
 server.listen(PORT, () => {

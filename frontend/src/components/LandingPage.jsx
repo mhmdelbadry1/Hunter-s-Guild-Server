@@ -16,6 +16,7 @@ import ServerFilesView from "./ServerFilesView";
 import Login from "./Login";
 import VersionSelector from "./VersionSelector";
 import ServerPropertiesEditor from "./ServerPropertiesEditor";
+import ModpackManager from "./ModpackManager";
 import { apiUrl, API_ROOT } from "../config/api";
 
 // Use API_ROOT for external status API, apiUrl() for our backend
@@ -50,6 +51,7 @@ function LandingPage() {
   const [showModsModal, setShowModsModal] = useState(false);
   const [showVersionModal, setShowVersionModal] = useState(false);
   const [showPropertiesModal, setShowPropertiesModal] = useState(false);
+  const [showModpackModal, setShowModpackModal] = useState(false);
 
   // Version Selector State
   const [availableVersions, setAvailableVersions] = useState([]);
@@ -1177,6 +1179,10 @@ function LandingPage() {
         />
       )}
 
+      {showModpackModal && (
+        <ModpackManager onClose={() => setShowModpackModal(false)} />
+      )}
+
       <section className="server-control-section" id="get-started">
         <h2>Server Control Panel</h2>
         {loading && <Spinner />}
@@ -1435,6 +1441,27 @@ function LandingPage() {
                   <path d="M5 7h6v1H5V7zm0 2h6v1H5V9zm0 2h4v1H5v-1z" />
                 </svg>
                 Settings
+              </button>
+              <button
+                className="btn modpack-btn"
+                onClick={() => setShowModpackModal(true)}
+                disabled={loading || serverAction !== "idle"}
+                title="Manage Modpack Distribution"
+              >
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 16 16"
+                  fill="currentColor"
+                  style={{
+                    marginRight: "8px",
+                    verticalAlign: "middle",
+                    display: "inline-block",
+                  }}
+                >
+                  <path d="M6.5 0A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3zM11 4v1.5A1.5 1.5 0 0 1 9.5 7h-3A1.5 1.5 0 0 1 5 5.5V4H1.5A1.5 1.5 0 0 0 0 5.5v9A1.5 1.5 0 0 0 1.5 16h13a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 14.5 4H11z" />
+                </svg>
+                Sync Mods
               </button>
             </div>
           </div>

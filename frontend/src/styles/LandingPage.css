@@ -1469,9 +1469,15 @@ a {
   border: 1px solid rgba(255, 255, 255, 0.2);
   color: #eee;
 }
+.modpack-btn {
+  background: rgba(156, 39, 176, 0.2);
+  color: #ce93d8;
+  border: 1px solid rgba(156, 39, 176, 0.4);
+}
 .mods-btn:hover,
 .version-btn:hover,
-.settings-btn:hover {
+.settings-btn:hover,
+.modpack-btn:hover {
   background: rgba(255, 255, 255, 0.2);
 }
 
