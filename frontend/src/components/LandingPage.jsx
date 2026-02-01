@@ -63,6 +63,7 @@ function LandingPage() {
   const [modsLoading, setModsLoading] = useState(false);
   const [publicIp, setPublicIp] = useState(null);
   const [ipLoading, setIpLoading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(null); // { percent: 0, totalSize: 0, uploadedSize: 0 }
 
   const socketRef = useRef(null);
   const logContainerRef = useRef(null);
@@ -575,7 +576,7 @@ function LandingPage() {
       await axios.delete(apiUrl(`/mods/${encodeURIComponent(modName)}`), {
         headers: { Authorization: `Bearer ${token}` },
       });
-      showNotification(`Deleted: ${modName}`);
+      showNotification("Mod deleted successfully.");
       await fetchMods(); // Refresh list
     } catch (error) {
       console.error("Error deleting mod:", error);
@@ -604,11 +605,21 @@ function LandingPage() {
   };
 
   // ===== MOD UPLOAD =====
-  const uploadMod = async (file) => {
-    if (!file) return;
+  const uploadMods = async (files) => {
+    if (!files || files.length === 0) return;
+
+    // Calculate total size for UX
+    let totalSize = 0;
+    for (let i = 0; i < files.length; i++) {
+      totalSize += files[i].size;
+    }
 
     const formData = new FormData();
-    formData.append("mod", file);
+    for (let i = 0; i < files.length; i++) {
+      formData.append("mods", files[i]);
+    }
+
+    setUploadProgress({ percent: 0, totalSize, uploadedSize: 0 });
 
     try {
       const token = localStorage.getItem("jwtToken");
@@ -617,14 +628,24 @@ function LandingPage() {
           Authorization: `Bearer ${token}`,
           "Content-Type": "multipart/form-data",
         },
+        onUploadProgress: (progressEvent) => {
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          setUploadProgress({
+            percent: percentCompleted,
+            totalSize,
+            uploadedSize: progressEvent.loaded
+          });
+        }
       });
-      showNotification(`✅ Uploaded: ${file.name}`);
+      showNotification("Mods uploaded successfully!");
+      setUploadProgress(null);
       await fetchMods(); // Refresh list
     } catch (error) {
-      console.error("Error uploading mod:", error);
+      console.error("Error uploading mods:", error);
+      setUploadProgress(null);
       showNotification(
-        "Error uploading mod: " +
-          (error.response?.data?.error || error.message),
+        "Error uploading mods: " +
+        (error.response?.data?.error || error.message),
         { autoClose: 5000 },
       );
     }
@@ -691,7 +712,7 @@ function LandingPage() {
       console.error("Error changing version:", error);
       showNotification(
         "Error changing version: " +
-          (error.response?.data?.error || error.message),
+        (error.response?.data?.error || error.message),
       );
     }
     setLoading(false);
@@ -717,8 +738,8 @@ function LandingPage() {
   const resetServer = async () => {
     const confirmed = window.confirm(
       "⚠️ RESET SERVER\n\n" +
-        "This will DELETE your world and start fresh.\n\n" +
-        "Are you sure? This cannot be undone!",
+      "This will DELETE your world and start fresh.\n\n" +
+      "Are you sure? This cannot be undone!",
     );
 
     if (!confirmed) return;
@@ -745,7 +766,7 @@ function LandingPage() {
       console.error("Error resetting server:", error);
       showNotification(
         "Error resetting server: " +
-          (error.response?.data?.error || error.message),
+        (error.response?.data?.error || error.message),
         { autoClose: 5000 },
       );
     }
@@ -770,7 +791,7 @@ function LandingPage() {
   // Handler to refocus prompt when clicking the console and show notification on first click
   const handleConsoleClick = () => {
     if (firstConsoleClick.current) {
-      showNotification("Press Enter to write commands!");
+      showNotification("Type commands below.");
       firstConsoleClick.current = false;
     }
   };
@@ -986,20 +1007,39 @@ function LandingPage() {
             {/* Upload Section */}
             <div className="mod-upload-section">
               <label className="upload-btn">
-                📤 Upload Mod (.jar)
+                📤 Upload Mods (.jar)
                 <input
                   type="file"
                   accept=".jar"
+                  multiple
                   hidden
                   onChange={(e) => {
-                    if (e.target.files[0]) {
-                      uploadMod(e.target.files[0]);
+                    if (e.target.files && e.target.files.length > 0) {
+                      uploadMods(e.target.files);
                       e.target.value = "";
                     }
                   }}
                 />
               </label>
-              <p className="upload-hint">Max 100MB per file</p>
+              <p className="upload-hint">Max 100MB per file. Supports multiple files.</p>
+
+              {uploadProgress && (
+                <div className="upload-progress-container">
+                  <div className="progress-bar-wrapper">
+                    <div
+                      className="progress-bar-fill"
+                      style={{ width: `${uploadProgress.percent}%` }}
+                    ></div>
+                  </div>
+                  <div className="progress-stats">
+                    <span>{uploadProgress.percent}%</span>
+                    <span>
+                      {(uploadProgress.uploadedSize / (1024 * 1024)).toFixed(2)} MB /
+                      {(uploadProgress.totalSize / (1024 * 1024)).toFixed(2)} MB
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
 
             <h4>Installed Mods ({modsList.length})</h4>
@@ -1149,13 +1189,12 @@ function LandingPage() {
               ) : (
                 <div className="status-badge-container">
                   <div
-                    className={`status-badge ${
-                      serverAction !== "idle"
-                        ? "status-working"
-                        : serverInfo.running
-                          ? "status-online"
-                          : "status-offline"
-                    }`}
+                    className={`status-badge ${serverAction !== "idle"
+                      ? "status-working"
+                      : serverInfo.running
+                        ? "status-online"
+                        : "status-offline"
+                      }`}
                   >
                     <span className="status-indicator">●</span>
                     <span className="status-text">
@@ -1495,9 +1534,9 @@ function LandingPage() {
         <div className="player-management">
           <h3>Player Management</h3>
           {serverInfo &&
-          serverInfo.players &&
-          serverInfo.players.sample &&
-          serverInfo.players.sample.length > 0 ? (
+            serverInfo.players &&
+            serverInfo.players.sample &&
+            serverInfo.players.sample.length > 0 ? (
             <ul>
               {serverInfo.players.sample.map((p) => (
                 <li key={p.id}>

@@ -639,10 +639,7 @@ a {
   border-radius: 4px;
 }
 
-/* Prevent selection styling on non-editable log lines */
-.log-display .log-line::selection {
-  background: transparent;
-}
+
 
 .console-log .log-display .prompt-line {
   min-height: 1.2em;
@@ -1685,4 +1682,35 @@ select:disabled {
   background: #333;
   color: #666;
   cursor: not-allowed;
+}
+
+/* Upload Progress */
+.upload-progress-container {
+  margin-top: 15px;
+  background: #333;
+  padding: 10px;
+  border-radius: 4px;
+}
+
+.progress-bar-wrapper {
+  background: #111;
+  height: 10px;
+  border-radius: 5px;
+  overflow: hidden;
+  margin-bottom: 5px;
+}
+
+.progress-bar-fill {
+  background: #00ff99;
+  height: 100%;
+  border-radius: 5px;
+  transition: width 0.3s ease;
+}
+
+.progress-stats {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  color: #ccc;
+  font-family: monospace;
 }

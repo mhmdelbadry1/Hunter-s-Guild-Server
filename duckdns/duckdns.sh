@@ -33,6 +33,6 @@ while true; do
         echo "[${TIME}] DuckDNS Update: FAILED (Response: ${RESPONSE})"
     fi
     
-    # Wait for 15 minutes (900 seconds)
-    sleep 900
+    # Wait for 5 minutes (300 seconds)
+    sleep 300
 done

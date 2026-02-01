@@ -40,6 +40,11 @@ case "${SERVER_TYPE}" in
     echo "Starting Forge server..."
     if [ -f "run.sh" ]; then
         # Modern Forge (1.17+) uses run.sh
+        echo "Applying memory settings: -Xms${MEMORY} -Xmx${MEMORY}"
+        # We overwrite user_jvm_args.txt to ensure our memory settings are used
+        # This file is automatically read by the Forge run.sh script
+        echo "-Xms${MEMORY} -Xmx${MEMORY}" > user_jvm_args.txt
+        
         chmod +x run.sh
         ./run.sh nogui
     else

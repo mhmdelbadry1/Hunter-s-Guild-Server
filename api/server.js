@@ -263,7 +263,7 @@ async function sendRconCommand(command) {
     await rcon.end();
     return response;
   } catch (error) {
-    if (rcon) try { await rcon.end(); } catch (e) {}
+    if (rcon) try { await rcon.end(); } catch (e) { }
     throw error;
   }
 }
@@ -359,7 +359,7 @@ app.post("/api/stop", authenticate, async (req, res) => {
       try {
         globalLogStream.destroy();
         globalLogStream = null;
-      } catch (e) {}
+      } catch (e) { }
     }
 
     res.json({ message: "Server stopping..." });
@@ -391,7 +391,7 @@ app.post("/api/restart", authenticate, async (req, res) => {
       try {
         globalLogStream.destroy();
         globalLogStream = null;
-      } catch (e) {}
+      } catch (e) { }
     }
 
     // Restart with shorter timeout
@@ -808,11 +808,11 @@ const modUpload = multer({
 app.post(
   "/api/mods/upload",
   authenticate,
-  modUpload.single("mod"),
+  modUpload.array("mods"), // Changed from single("mod") to array("mods")
   (req, res) => {
     try {
-      if (!req.file) {
-        return res.status(400).json({ error: "No file uploaded" });
+      if (!req.files || req.files.length === 0) {
+        return res.status(400).json({ error: "No files uploaded" });
       }
 
       // Ensure mods directory exists
@@ -820,31 +820,48 @@ app.post(
         fs.mkdirSync(MODS_DIR, { recursive: true });
       }
 
-      const destPath = path.join(MODS_DIR, req.file.originalname);
+      const uploadedFiles = [];
+      const errors = [];
 
-      // Use copy + unlink instead of rename to handle cross-device moves (EXDEV)
-      try {
-        fs.copyFileSync(req.file.path, destPath);
-        fs.unlinkSync(req.file.path);
-      } catch (moveError) {
-        console.error("File move error:", moveError);
-        // Clean up temp file if copy failed
+      for (const file of req.files) {
+        const destPath = path.join(MODS_DIR, file.originalname);
+
+        // Use copy + unlink instead of rename to handle cross-device moves (EXDEV)
         try {
-          fs.unlinkSync(req.file.path);
-        } catch (e) {}
-        throw new Error("Failed to save mod file");
+          fs.copyFileSync(file.path, destPath);
+          fs.unlinkSync(file.path);
+          uploadedFiles.push(file.originalname);
+        } catch (moveError) {
+          console.error(`File move error for ${file.originalname}:`, moveError);
+          // Clean up temp file if copy failed
+          try {
+            fs.unlinkSync(file.path);
+          } catch (e) { }
+          errors.push({ file: file.originalname, error: "Failed to save file" });
+        }
+      }
+
+      if (uploadedFiles.length === 0 && errors.length > 0) {
+        throw new Error("Failed to save any of the uploaded files.");
       }
 
       res.json({
-        message: "Mod uploaded successfully",
-        name: req.file.originalname,
+        message: `Uploaded ${uploadedFiles.length} mods successfully.`,
+        uploaded: uploadedFiles,
+        errors: errors.length > 0 ? errors : undefined
       });
     } catch (error) {
       console.error("Upload error:", error);
+      // Clean up any remaining temp files in case of catastrophic failure
+      if (req.files) {
+        req.files.forEach(file => {
+          try { if (fs.existsSync(file.path)) fs.unlinkSync(file.path); } catch (e) { }
+        });
+      }
       // Send a clean error message to the user
       res
         .status(500)
-        .json({ error: "Failed to upload mod. Please try again." });
+        .json({ error: "Failed to upload mods. Please try again." });
     }
   },
 );
@@ -895,7 +912,7 @@ app.post("/api/server/reset", authenticate, async (req, res) => {
           await new Promise((r) => setTimeout(r, 500));
           try {
             fs.rmSync(curPath, { recursive: true, force: true });
-          } catch (retryE) {}
+          } catch (retryE) { }
         }
       }
     };
@@ -1007,24 +1024,24 @@ app.put("/api/server-properties", authenticate, (req, res) => {
   }
 });
 
-    // Save server.properties 
-    app.post("/api/server-properties/save", authenticate, async (req, res) => {
-      const { content } = req.body;
-      if (!content || typeof content !== "string") {
-        return res.status(400).json({ error: "Missing or invalid content" });
-      }
+// Save server.properties 
+app.post("/api/server-properties/save", authenticate, async (req, res) => {
+  const { content } = req.body;
+  if (!content || typeof content !== "string") {
+    return res.status(400).json({ error: "Missing or invalid content" });
+  }
 
-      try {
-        const propsPath = path.join(SERVER_DIR, "server.properties");
-        // Use direct write for better compatibility with Docker volume mounts on Windows
-        fs.writeFileSync(propsPath, content, "utf8");
+  try {
+    const propsPath = path.join(SERVER_DIR, "server.properties");
+    // Use direct write for better compatibility with Docker volume mounts on Windows
+    fs.writeFileSync(propsPath, content, "utf8");
 
-        res.json({ message: "server.properties saved successfully" });
-      } catch (error) {
-        console.error("Failed to save server.properties:", error);
-        res.status(500).json({ error: error.message });
-      }
-    });
+    res.json({ message: "server.properties saved successfully" });
+  } catch (error) {
+    console.error("Failed to save server.properties:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // ===== FILE BROWSER =====
 
@@ -1148,7 +1165,7 @@ async function attachGlobalLogStream(container, silent = false) {
       try {
         globalLogStream.destroy();
         console.log("[System] Destroyed previous log stream.");
-      } catch (e) {}
+      } catch (e) { }
       globalLogStream = null;
     }
 
