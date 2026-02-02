@@ -42,10 +42,11 @@ a {
 .landing-container {
   display: flex;
   flex-direction: column;
-  max-width: 100%; /* New maximum width */
-  margin: 0 auto; /* Center the container horizontally */
+  width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
   min-height: 100vh;
-  overflow-x: hidden; /* Prevent horizontal scroll */
+  overflow-x: hidden;
 }
 
 /* HEADER */
@@ -58,7 +59,8 @@ a {
   padding: 0 40px;
   height: 60px; /* Fixed header height */
   border-bottom: 1px solid #333;
-  animation: fadeIn 1.5s ease-in-out;
+  -webkit-animation: fadeIn 1.5s ease-in-out;
+          animation: fadeIn 1.5s ease-in-out;
 }
 
 /* Logo */
@@ -165,25 +167,50 @@ a {
     justify-content: center;
     align-items: center;
     text-align: center;
-    padding: 20px;
+    padding: 20px 15px;
+    min-height: auto;
   }
 
   .hero-content {
-    margin: 40px auto 20px; /* Center and reduce margin */
+    margin: 20px auto; /* Center and reduce margin */
     max-width: 100%;
     margin-left: 0;
+    padding: 0 10px;
   }
 
   .hero-content h1 {
-    font-size: 2rem; /* Smaller title */
+    font-size: 1.8rem; /* Smaller title */
+    word-wrap: break-word;
   }
 
   .hero-subtitle {
-    font-size: 1rem;
+    font-size: 0.9rem;
+    padding: 0 5px;
   }
 
   .hero-buttons {
     justify-content: center; /* Center buttons */
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .hero-buttons .btn {
+    font-size: 0.7rem;
+    padding: 10px 16px;
+  }
+
+  /* IP Card Mobile */
+  .ip-card {
+    flex-direction: column;
+    gap: 5px;
+    padding: 10px 15px;
+    width: auto;
+    max-width: 90%;
+  }
+
+  .ip-address {
+    font-size: 0.8rem;
+    word-break: break-all;
   }
 
   .hero-image {
@@ -191,7 +218,7 @@ a {
     position: relative;
     align-self: center;
     margin-top: 20px;
-    width: 60%; /* Smaller image */
+    width: 80%; /* Smaller image */
     right: auto;
     bottom: auto;
   }
@@ -202,21 +229,59 @@ a {
 
   .landing-container {
     margin: 0 auto;
+    width: 100%;
   }
 }
 
 /* For screens up to 480px (mobile phones) */
 @media (max-width: 480px) {
   .hero-content h1 {
-    font-size: 1.5rem;
+    font-size: 1.4rem;
+    line-height: 1.4;
   }
 
   .hero-section {
-    padding: 20px 10px;
+    padding: 15px 10px;
+    min-height: auto;
+  }
+
+  .hero-content {
+    margin: 15px auto;
+    padding: 0 5px;
+  }
+
+  .hero-subtitle {
+    font-size: 0.85rem;
+  }
+
+  .hero-buttons {
+    flex-direction: column;
+    width: 100%;
+    align-items: center;
+  }
+
+  .hero-buttons .btn {
+    width: 80%;
+    text-align: center;
+    font-size: 0.65rem;
+  }
+
+  .ip-card {
+    width: 90%;
+    padding: 8px 12px;
+  }
+
+  .ip-label {
+    font-size: 0.75rem;
+  }
+
+  .ip-address {
+    font-size: 0.7rem;
   }
 
   .hero-image {
-    width: 80%; /* Larger image on very small screens */
+    width: 90%;
+    margin-top: 15px;
   }
 }
 
@@ -347,7 +412,20 @@ a {
   border-radius: 50%;
   box-shadow: 0 0 8px #fff;
   opacity: 0;
-  animation: twinkle 2s infinite ease-in-out;
+  -webkit-animation: twinkle 2s infinite ease-in-out;
+          animation: twinkle 2s infinite ease-in-out;
+}
+
+@-webkit-keyframes twinkle {
+  0%,
+  100% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
 }
 
 @keyframes twinkle {
@@ -367,7 +445,8 @@ a {
   padding: 60px 40px;
   background: #1a1a1a; /* Different background color */
   text-align: center;
-  animation: fadeIn 1s ease-in-out;
+  -webkit-animation: fadeIn 1s ease-in-out;
+          animation: fadeIn 1s ease-in-out;
 }
 
 .server-control-section h2 {
@@ -406,7 +485,8 @@ a {
   padding: 60px 40px;
   background: #111;
   text-align: center;
-  animation: fadeIn 2s ease-in-out;
+  -webkit-animation: fadeIn 2s ease-in-out;
+          animation: fadeIn 2s ease-in-out;
 }
 
 .connect-section h2 {
@@ -451,11 +531,30 @@ a {
 }
 
 /* ANIMATIONS */
+@-webkit-keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
 @keyframes fadeIn {
   from {
     opacity: 0;
   }
   to {
+    opacity: 1;
+  }
+}
+
+@-webkit-keyframes slideIn {
+  from {
+    transform: translateY(50px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
     opacity: 1;
   }
 }
@@ -478,7 +577,8 @@ a {
   background: #1a1a1a;
   text-align: center;
   max-height: auto;
-  animation: fadeIn 1s ease-in-out;
+  -webkit-animation: fadeIn 1s ease-in-out;
+          animation: fadeIn 1s ease-in-out;
 }
 
 .server-control-section h2 {
@@ -1061,6 +1161,9 @@ a {
 }
 
 /* Optional: remove default selection on prompt-line if desired */
+.prompt-line::-moz-selection {
+  background: #adaaaa;
+}
 .prompt-line::selection {
   background: #adaaaa;
 }
@@ -1094,7 +1197,10 @@ a {
 }
 
 .server-files-view span {
-  user-select: none;
+  -webkit-user-select: none;
+     -moz-user-select: none;
+      -ms-user-select: none;
+          user-select: none;
 }
 
 /* ------------------------ */
@@ -1280,7 +1386,8 @@ a {
   justify-content: center;
   align-items: center;
   z-index: 10000;
-  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+          backdrop-filter: blur(4px);
 }
 
 .delete-modal {
@@ -1292,7 +1399,19 @@ a {
   width: 90%;
   position: relative;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-  animation: modalSlideIn 0.2s ease-out;
+  -webkit-animation: modalSlideIn 0.2s ease-out;
+          animation: modalSlideIn 0.2s ease-out;
+}
+
+@-webkit-keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
 }
 
 @keyframes modalSlideIn {
@@ -1373,6 +1492,22 @@ a {
 .delete-modal-input:focus {
   outline: none;
   border-color: #ef4444;
+}
+
+.delete-modal-input::-webkit-input-placeholder {
+  color: #555;
+}
+
+.delete-modal-input::-moz-placeholder {
+  color: #555;
+}
+
+.delete-modal-input:-ms-input-placeholder {
+  color: #555;
+}
+
+.delete-modal-input::-ms-input-placeholder {
+  color: #555;
 }
 
 .delete-modal-input::placeholder {
@@ -1531,7 +1666,18 @@ a {
   padding: 10px;
   border-radius: 4px;
   margin-bottom: 10px;
-  animation: pulse 1.5s infinite;
+  -webkit-animation: pulse 1.5s infinite;
+          animation: pulse 1.5s infinite;
+}
+
+@-webkit-keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
 }
 
 @keyframes pulse {
@@ -1642,7 +1788,8 @@ a {
   border: 1px solid rgba(0, 255, 153, 0.3);
   cursor: pointer;
   transition: all 0.3s ease;
-  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+          backdrop-filter: blur(5px);
   margin-top: 15px;
   position: relative;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
@@ -1693,9 +1840,19 @@ a {
 }
 
 .ip-refresh-btn.spinning {
-  animation: spin 1s linear infinite;
+  -webkit-animation: spin 1s linear infinite;
+          animation: spin 1s linear infinite;
   opacity: 0.7;
   cursor: wait;
+}
+
+@-webkit-keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @keyframes spin {
@@ -1904,7 +2061,8 @@ a {
 .btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
-  filter: grayscale(0.8);
+  -webkit-filter: grayscale(0.8);
+          filter: grayscale(0.8);
   pointer-events: none;
 }
 
@@ -1920,7 +2078,8 @@ a {
   align-items: center;
   justify-content: center;
   z-index: 2000; /* Higher than mods modal */
-  animation: fadeIn 0.2s ease-out;
+  -webkit-animation: fadeIn 0.2s ease-out;
+          animation: fadeIn 0.2s ease-out;
 }
 
 .modal-content {
@@ -1933,7 +2092,8 @@ a {
   color: #fff;
   border: 1px solid #444;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
-  animation: slideIn 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+  -webkit-animation: slideIn 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+          animation: slideIn 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
 }
 
 .close-btn {
@@ -1973,17 +2133,21 @@ a {
 .step-group {
   margin-bottom: 20px;
   opacity: 0;
-  animation: slideIn 0.3s ease-out forwards;
+  -webkit-animation: slideIn 0.3s ease-out forwards;
+          animation: slideIn 0.3s ease-out forwards;
 }
 
 .step-group:nth-child(1) {
-  animation-delay: 0.1s;
+  -webkit-animation-delay: 0.1s;
+          animation-delay: 0.1s;
 }
 .step-group:nth-child(2) {
-  animation-delay: 0.2s;
+  -webkit-animation-delay: 0.2s;
+          animation-delay: 0.2s;
 }
 .step-group:nth-child(3) {
-  animation-delay: 0.3s;
+  -webkit-animation-delay: 0.3s;
+          animation-delay: 0.3s;
 }
 
 .step-group label {
