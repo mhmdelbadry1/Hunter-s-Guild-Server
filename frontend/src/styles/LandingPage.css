@@ -584,7 +584,7 @@ a {
   box-shadow: 0 0 8px #fff;
   opacity: 0;
   -webkit-animation: twinkle 2s infinite ease-in-out;
-          animation: twinkle 2s infinite ease-in-out;
+  animation: twinkle 2s infinite ease-in-out;
 }
 
 @-webkit-keyframes twinkle {
@@ -617,7 +617,7 @@ a {
   background: #1a1a1a; /* Different background color */
   text-align: center;
   -webkit-animation: fadeIn 1s ease-in-out;
-          animation: fadeIn 1s ease-in-out;
+  animation: fadeIn 1s ease-in-out;
 }
 
 .server-control-section h2 {
@@ -657,7 +657,7 @@ a {
   background: #111;
   text-align: center;
   -webkit-animation: fadeIn 2s ease-in-out;
-          animation: fadeIn 2s ease-in-out;
+  animation: fadeIn 2s ease-in-out;
 }
 
 .connect-section h2 {
@@ -749,7 +749,7 @@ a {
   text-align: center;
   max-height: auto;
   -webkit-animation: fadeIn 1s ease-in-out;
-          animation: fadeIn 1s ease-in-out;
+  animation: fadeIn 1s ease-in-out;
 }
 
 .server-control-section h2 {
@@ -1369,9 +1369,9 @@ a {
 
 .server-files-view span {
   -webkit-user-select: none;
-     -moz-user-select: none;
-      -ms-user-select: none;
-          user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
 }
 
 /* ------------------------ */
@@ -1558,7 +1558,7 @@ a {
   align-items: center;
   z-index: 10000;
   -webkit-backdrop-filter: blur(4px);
-          backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
 }
 
 .delete-modal {
@@ -1571,7 +1571,7 @@ a {
   position: relative;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
   -webkit-animation: modalSlideIn 0.2s ease-out;
-          animation: modalSlideIn 0.2s ease-out;
+  animation: modalSlideIn 0.2s ease-out;
 }
 
 @-webkit-keyframes modalSlideIn {
@@ -1838,7 +1838,7 @@ a {
   border-radius: 4px;
   margin-bottom: 10px;
   -webkit-animation: pulse 1.5s infinite;
-          animation: pulse 1.5s infinite;
+  animation: pulse 1.5s infinite;
 }
 
 @-webkit-keyframes pulse {
@@ -2018,7 +2018,7 @@ a {
 
 .ip-refresh-btn.spinning {
   -webkit-animation: spin 1s linear infinite;
-          animation: spin 1s linear infinite;
+  animation: spin 1s linear infinite;
   opacity: 0.7;
   cursor: wait;
 }
@@ -2239,7 +2239,7 @@ a {
   opacity: 0.4;
   cursor: not-allowed;
   -webkit-filter: grayscale(0.8);
-          filter: grayscale(0.8);
+  filter: grayscale(0.8);
   pointer-events: none;
 }
 
@@ -2256,7 +2256,7 @@ a {
   justify-content: center;
   z-index: 2000; /* Higher than mods modal */
   -webkit-animation: fadeIn 0.2s ease-out;
-          animation: fadeIn 0.2s ease-out;
+  animation: fadeIn 0.2s ease-out;
 }
 
 .modal-content {
@@ -2270,7 +2270,7 @@ a {
   border: 1px solid #444;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
   -webkit-animation: slideIn 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
-          animation: slideIn 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+  animation: slideIn 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
 }
 
 .close-btn {
@@ -2311,20 +2311,20 @@ a {
   margin-bottom: 20px;
   opacity: 0;
   -webkit-animation: slideIn 0.3s ease-out forwards;
-          animation: slideIn 0.3s ease-out forwards;
+  animation: slideIn 0.3s ease-out forwards;
 }
 
 .step-group:nth-child(1) {
   -webkit-animation-delay: 0.1s;
-          animation-delay: 0.1s;
+  animation-delay: 0.1s;
 }
 .step-group:nth-child(2) {
   -webkit-animation-delay: 0.2s;
-          animation-delay: 0.2s;
+  animation-delay: 0.2s;
 }
 .step-group:nth-child(3) {
   -webkit-animation-delay: 0.3s;
-          animation-delay: 0.3s;
+  animation-delay: 0.3s;
 }
 
 .step-group label {

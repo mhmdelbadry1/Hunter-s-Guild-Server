@@ -185,18 +185,19 @@ const HeroBanner = () => {
 
       try {
         // Check WebGL support first
-        const canvas = document.createElement('canvas');
-        const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+        const canvas = document.createElement("canvas");
+        const gl =
+          canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
         if (!gl) {
           console.warn("WebGL not supported, skipping particle effects");
           return;
         }
-        
-        renderer = new THREE.WebGLRenderer({ 
-          alpha: true, 
+
+        renderer = new THREE.WebGLRenderer({
+          alpha: true,
           antialias: false,
           powerPreference: "low-power",
-          failIfMajorPerformanceCaveat: true 
+          failIfMajorPerformanceCaveat: true,
         });
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5)); // Limit pixel ratio for performance
         renderer.setSize(container.clientWidth, container.clientHeight);

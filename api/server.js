@@ -16,6 +16,11 @@ const AdmZip = require("adm-zip");
 const app = express();
 const server = http.createServer(app);
 
+// Set server timeouts for large uploads
+server.timeout = 900000; // 15 minutes
+server.keepAliveTimeout = 900000; // 15 minutes
+server.headersTimeout = 910000; // Slightly more than keepAliveTimeout
+
 // Docker client (connects via socket)
 const docker = new Docker({ socketPath: "/var/run/docker.sock" });
 
@@ -34,7 +39,8 @@ const CONFIG_DIR = path.join(SERVER_DIR, "config");
 const WORLD_DIR = path.join(SERVER_DIR, "world");
 
 // Middleware
-app.use(express.json());
+app.use(express.json({ limit: "2gb" })); // Increase JSON body limit
+app.use(express.urlencoded({ limit: "2gb", extended: true })); // Increase URL-encoded body limit
 app.use(cookieParser());
 app.use(
   cors({
@@ -797,9 +803,15 @@ app.delete("/api/mods/:name", authenticate, (req, res) => {
 // Upload mod
 const modUpload = multer({
   dest: "/tmp/mods",
-  limits: { fileSize: 100 * 1024 * 1024 }, // 100MB max
+  limits: { 
+    fileSize: 500 * 1024 * 1024, // 500MB max per file
+    files: 50 // Max 50 files at once
+  },
   fileFilter: (req, file, cb) => {
-    if (file.originalname.endsWith(".jar") || file.originalname.endsWith(".zip")) {
+    if (
+      file.originalname.endsWith(".jar") ||
+      file.originalname.endsWith(".zip")
+    ) {
       cb(null, true);
     } else {
       cb(new Error("Only .jar and .zip files allowed"));
@@ -844,7 +856,10 @@ app.post(
             // Clean up the ZIP file
             fs.unlinkSync(file.path);
           } catch (zipError) {
-            console.error(`ZIP extraction error for ${file.originalname}:`, zipError);
+            console.error(
+              `ZIP extraction error for ${file.originalname}:`,
+              zipError,
+            );
             try {
               fs.unlinkSync(file.path);
             } catch (e) {}
@@ -863,7 +878,10 @@ app.post(
             fs.unlinkSync(file.path);
             uploadedFiles.push(file.originalname);
           } catch (moveError) {
-            console.error(`File move error for ${file.originalname}:`, moveError);
+            console.error(
+              `File move error for ${file.originalname}:`,
+              moveError,
+            );
             // Clean up temp file if copy failed
             try {
               fs.unlinkSync(file.path);
