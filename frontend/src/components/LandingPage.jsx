@@ -1011,10 +1011,10 @@ function LandingPage() {
             {/* Upload Section */}
             <div className="mod-upload-section">
               <label className="upload-btn">
-                📤 Upload Mods (.jar)
+                📤 Upload Mods (.jar or .zip)
                 <input
                   type="file"
-                  accept=".jar"
+                  accept=".jar,.zip"
                   multiple
                   hidden
                   onChange={(e) => {

@@ -11,6 +11,7 @@ const { Server } = require("socket.io");
 const Docker = require("dockerode");
 const multer = require("multer");
 const archiver = require("archiver");
+const AdmZip = require("adm-zip");
 
 const app = express();
 const server = http.createServer(app);
@@ -798,10 +799,10 @@ const modUpload = multer({
   dest: "/tmp/mods",
   limits: { fileSize: 100 * 1024 * 1024 }, // 100MB max
   fileFilter: (req, file, cb) => {
-    if (file.originalname.endsWith(".jar")) {
+    if (file.originalname.endsWith(".jar") || file.originalname.endsWith(".zip")) {
       cb(null, true);
     } else {
-      cb(new Error("Only .jar files allowed"));
+      cb(new Error("Only .jar and .zip files allowed"));
     }
   },
 });
@@ -825,23 +826,53 @@ app.post(
       const errors = [];
 
       for (const file of req.files) {
-        const destPath = path.join(MODS_DIR, file.originalname);
-
-        // Use copy + unlink instead of rename to handle cross-device moves (EXDEV)
-        try {
-          fs.copyFileSync(file.path, destPath);
-          fs.unlinkSync(file.path);
-          uploadedFiles.push(file.originalname);
-        } catch (moveError) {
-          console.error(`File move error for ${file.originalname}:`, moveError);
-          // Clean up temp file if copy failed
+        // Handle ZIP files - extract all .jar files inside
+        if (file.originalname.endsWith(".zip")) {
           try {
+            const zip = new AdmZip(file.path);
+            const zipEntries = zip.getEntries();
+
+            zipEntries.forEach((entry) => {
+              if (!entry.isDirectory && entry.entryName.endsWith(".jar")) {
+                const jarName = path.basename(entry.entryName);
+                const destPath = path.join(MODS_DIR, jarName);
+                zip.extractEntryTo(entry, MODS_DIR, false, true);
+                uploadedFiles.push(jarName);
+              }
+            });
+
+            // Clean up the ZIP file
             fs.unlinkSync(file.path);
-          } catch (e) {}
-          errors.push({
-            file: file.originalname,
-            error: "Failed to save file",
-          });
+          } catch (zipError) {
+            console.error(`ZIP extraction error for ${file.originalname}:`, zipError);
+            try {
+              fs.unlinkSync(file.path);
+            } catch (e) {}
+            errors.push({
+              file: file.originalname,
+              error: "Failed to extract ZIP file",
+            });
+          }
+        } else {
+          // Handle regular .jar files
+          const destPath = path.join(MODS_DIR, file.originalname);
+
+          // Use copy + unlink instead of rename to handle cross-device moves (EXDEV)
+          try {
+            fs.copyFileSync(file.path, destPath);
+            fs.unlinkSync(file.path);
+            uploadedFiles.push(file.originalname);
+          } catch (moveError) {
+            console.error(`File move error for ${file.originalname}:`, moveError);
+            // Clean up temp file if copy failed
+            try {
+              fs.unlinkSync(file.path);
+            } catch (e) {}
+            errors.push({
+              file: file.originalname,
+              error: "Failed to save file",
+            });
+          }
         }
       }
 
