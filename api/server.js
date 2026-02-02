@@ -16,10 +16,10 @@ const AdmZip = require("adm-zip");
 const app = express();
 const server = http.createServer(app);
 
-// Set server timeouts for large uploads
-server.timeout = 900000; // 15 minutes
-server.keepAliveTimeout = 900000; // 15 minutes
-server.headersTimeout = 910000; // Slightly more than keepAliveTimeout
+// Set server timeouts for VERY slow uploads (60 minutes)
+server.timeout = 3600000; // 60 minutes
+server.keepAliveTimeout = 3600000; // 60 minutes
+server.headersTimeout = 3610000; // Slightly more than keepAliveTimeout
 
 // Docker client (connects via socket)
 const docker = new Docker({ socketPath: "/var/run/docker.sock" });
@@ -804,8 +804,8 @@ app.delete("/api/mods/:name", authenticate, (req, res) => {
 const modUpload = multer({
   dest: "/tmp/mods",
   limits: { 
-    fileSize: 500 * 1024 * 1024, // 500MB max per file
-    files: 50 // Max 50 files at once
+    fileSize: 1000 * 1024 * 1024, // 1GB max per file
+    files: 100 // Max 100 files at once
   },
   fileFilter: (req, file, cb) => {
     if (

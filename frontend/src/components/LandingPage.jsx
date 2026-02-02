@@ -630,7 +630,7 @@ function LandingPage() {
           Authorization: `Bearer ${token}`,
           "Content-Type": "multipart/form-data",
         },
-        timeout: 600000, // 10 minutes timeout for large uploads
+        timeout: 3600000, // 60 minutes timeout for slow uploads
         onUploadProgress: (progressEvent) => {
           const percentCompleted = Math.round(
             (progressEvent.loaded * 100) / progressEvent.total,

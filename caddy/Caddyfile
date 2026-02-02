@@ -12,21 +12,23 @@
         }
     }
     
-    # API routes with extended timeout for uploads
+    # API routes with MASSIVELY extended timeout for slow uploads
     handle /api/* {
         reverse_proxy api:3001 {
             header_up X-Forwarded-For {remote_host}
             header_up X-Real-IP {remote_host}
             transport http {
-                read_buffer 4096
-                write_buffer 4096
+                read_buffer 8192
+                write_buffer 8192
                 max_response_header 10MB
-                dial_timeout 15m
-                response_header_timeout 15m
+                dial_timeout 60m
+                response_header_timeout 60m
+                read_timeout 60m
+                write_timeout 60m
             }
         }
         request_body {
-            max_size 2GB
+            max_size 5GB
         }
     }
     
@@ -73,21 +75,23 @@
         }
     }
     
-    # API routes with extended timeout for uploads
+    # API routes with MASSIVELY extended timeout for slow uploads
     handle /api/* {
         reverse_proxy api:3001 {
             header_up X-Forwarded-For {remote_host}
             header_up X-Real-IP {remote_host}
             transport http {
-                read_buffer 4096
-                write_buffer 4096
+                read_buffer 8192
+                write_buffer 8192
                 max_response_header 10MB
-                dial_timeout 15m
-                response_header_timeout 15m
+                dial_timeout 60m
+                response_header_timeout 60m
+                read_timeout 60m
+                write_timeout 60m
             }
         }
         request_body {
-            max_size 2GB
+            max_size 5GB
         }
     }
     
