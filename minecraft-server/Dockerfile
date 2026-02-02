@@ -27,6 +27,11 @@ COPY start.sh /start.sh
 COPY backup.sh /backup.sh
 RUN chmod +x /start.sh /backup.sh
 
+
+# Create a default server.properties file if it doesn't exist
+RUN touch /server/server.properties && echo "enable-query=true" > /server/server.properties
+
+
 # Expose Minecraft port
 EXPOSE 25565
 
