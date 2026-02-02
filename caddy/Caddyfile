@@ -1,7 +1,7 @@
 # Caddy reverse proxy configuration
 # Handles SSL automatically via Let's Encrypt
 
-:80 {
+{$DOMAIN:localhost} {
     # Modpack distribution (public access)
     handle /modpack/* {
         reverse_proxy api:3001
