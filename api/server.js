@@ -1358,7 +1358,6 @@ function ensureQueryEnabled() {
 // ===== MODPACK MANAGEMENT =====
 
 const crypto = require("crypto");
-const AdmZip = require("adm-zip");
 
 // Generate hash for a file
 function getFileHash(filePath) {
