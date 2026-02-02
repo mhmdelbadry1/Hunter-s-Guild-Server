@@ -60,7 +60,14 @@ const FileIcon = () => (
 // ----------------------------------
 // Delete Confirmation Modal
 // ----------------------------------
-function DeleteConfirmModal({ isOpen, filePath, fileName, isDirectory, onConfirm, onCancel }) {
+function DeleteConfirmModal({
+  isOpen,
+  filePath,
+  fileName,
+  isDirectory,
+  onConfirm,
+  onCancel,
+}) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -77,7 +84,7 @@ function DeleteConfirmModal({ isOpen, filePath, fileName, isDirectory, onConfirm
       await axios.post(
         apiUrl("/files/delete"),
         { path: filePath, password },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       setPassword("");
       onConfirm();
@@ -94,21 +101,23 @@ function DeleteConfirmModal({ isOpen, filePath, fileName, isDirectory, onConfirm
         <button className="delete-modal-close" onClick={onCancel}>
           <DeleteIcon />
         </button>
-        
+
         <WarningIcon />
-        
+
         <h2>Confirm Delete</h2>
         <p className="delete-modal-file">
           {isDirectory ? "📁" : "📄"} <strong>{fileName}</strong>
         </p>
         <p className="delete-modal-warning">
-          {isDirectory 
+          {isDirectory
             ? "This will permanently delete this folder and ALL its contents."
             : "This will permanently delete this file."}
         </p>
-        
+
         <form onSubmit={handleSubmit}>
-          <label className="delete-modal-label">Enter password to confirm:</label>
+          <label className="delete-modal-label">
+            Enter password to confirm:
+          </label>
           <input
             type="password"
             value={password}
@@ -117,20 +126,20 @@ function DeleteConfirmModal({ isOpen, filePath, fileName, isDirectory, onConfirm
             placeholder="Password"
             autoFocus
           />
-          
+
           {error && <p className="delete-modal-error">{error}</p>}
-          
+
           <div className="delete-modal-buttons">
-            <button 
-              type="button" 
-              onClick={onCancel} 
+            <button
+              type="button"
+              onClick={onCancel}
               className="delete-modal-cancel"
               disabled={loading}
             >
               Cancel
             </button>
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               className="delete-modal-confirm"
               disabled={loading || !password}
             >
@@ -151,7 +160,7 @@ function FileNode({ node, parentPath = "", onDelete }) {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const toggleExpanded = () => setExpanded(!expanded);
-  
+
   const fullPath = parentPath ? `${parentPath}/${node.name}` : node.name;
 
   const handleDeleteClick = (e) => {
@@ -175,8 +184,8 @@ function FileNode({ node, parentPath = "", onDelete }) {
           >
             <FolderIcon open={expanded} /> {node.name}
           </span>
-          <button 
-            className="delete-btn" 
+          <button
+            className="delete-btn"
             onClick={handleDeleteClick}
             title={`Delete ${node.name}`}
           >
@@ -186,7 +195,12 @@ function FileNode({ node, parentPath = "", onDelete }) {
         {expanded && node.children && (
           <ul className="directory-children">
             {node.children.map((child, idx) => (
-              <FileNode key={idx} node={child} parentPath={fullPath} onDelete={onDelete} />
+              <FileNode
+                key={idx}
+                node={child}
+                parentPath={fullPath}
+                onDelete={onDelete}
+              />
             ))}
           </ul>
         )}
@@ -207,8 +221,8 @@ function FileNode({ node, parentPath = "", onDelete }) {
           <span className="file-name" style={{ flex: 1 }}>
             <FileIcon /> {node.name}
           </span>
-          <button 
-            className="delete-btn" 
+          <button
+            className="delete-btn"
             onClick={handleDeleteClick}
             title={`Delete ${node.name}`}
           >

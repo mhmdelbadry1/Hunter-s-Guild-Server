@@ -1,4 +1,3 @@
-
 require("dotenv").config();
 const express = require("express");
 const http = require("http");
@@ -340,7 +339,7 @@ app.post("/api/stop", authenticate, async (req, res) => {
       try {
         globalLogStream.destroy();
         globalLogStream = null;
-      } catch (e) { }
+      } catch (e) {}
     }
 
     res.json({ message: "Server stopping..." });
@@ -372,7 +371,7 @@ app.post("/api/restart", authenticate, async (req, res) => {
       try {
         globalLogStream.destroy();
         globalLogStream = null;
-      } catch (e) { }
+      } catch (e) {}
     }
 
     // Restart with shorter timeout
@@ -588,211 +587,150 @@ app.post("/api/version/change", authenticate, async (req, res) => {
   const newType = serverType || "forge";
 
   try {
-    // Helper to create the Minecraft container
-    async function createMinecraftContainer({ version, serverType, forgeVersion, forceRecreate = false }) {
-      try {
-        console.log("[CreateContainer] Starting container creation flow...");
-        console.log(`[CreateContainer] Params: version=${version}, type=${serverType}, forge=${forgeVersion}, force=${forceRecreate}`);
+    const containerInfo = await getMinecraftContainer();
+    let newEnv;
+    let imageToUse;
+    let hostConfigToUse;
 
-        const currentContainer = await getMinecraftContainer();
-        let newEnv = [];
-        let hostConfigToUse = {};
-        // Use the correct project image name (derived from docker-compose service name + project)
-        let imageToUse = "hunter-s-guild-server-minecraft:latest";
+    if (containerInfo) {
+      // Container exists: Inherit configuration
+      const container = docker.getContainer(containerInfo.Id);
+      const inspect = await container.inspect();
 
-        if (currentContainer) {
-          console.log(`[CreateContainer] Found existing container: ${currentContainer.Id}`);
-          const container = docker.getContainer(currentContainer.Id);
-          const inspect = await container.inspect();
-
-          if (forceRecreate) {
-            if (inspect.State.Running) {
-              console.log("[CreateContainer] Stopping running container...");
-              await container.stop({ t: 30 });
-            }
-            console.log("[CreateContainer] Removing old container...");
-            await container.remove();
-          } else {
-            console.log("[CreateContainer] Container exists and forceRecreate is false. Returning existing.");
-            return { message: "Container already exists", container: currentContainer };
-          }
-
-          // inherit config from old container
-          // Ensure we use the correct image even if inherited one was weird
-          imageToUse = inspect.Config.Image || imageToUse;
-          hostConfigToUse = inspect.HostConfig;
-
-          const oldEnv = inspect.Config.Env || [];
-          newEnv = oldEnv.filter(
-            (e) =>
-              !e.startsWith("MC_VERSION=") &&
-              !e.startsWith("SERVER_TYPE=") &&
-              !e.startsWith("FORGE_VERSION="),
-          );
-        } else {
-          console.log("[CreateContainer] No existing container found. Preparing fresh config.");
-
-          // Try to auto-discover binds from API container
-          let binds = [];
-          try {
-            const os = require("os");
-            const hostname = os.hostname();
-            console.log(`[CreateContainer] Inspecting self (hostname: ${hostname}) for volume binds...`);
-
-            const apiContainer = docker.getContainer(hostname);
-            const apiInspect = await apiContainer.inspect();
-            const mounts = apiInspect.Mounts || [];
-
-            console.log(`[CreateContainer] Found ${mounts.length} mounts in API container.`);
-
-            const getSource = (target) => {
-              const m = mounts.find((m) => m.Destination === target);
-              return m ? (m.Type === "volume" ? m.Name : m.Source) : null;
-            };
-
-            // The API container mounts volumes at /server/xxx same as minecraft container
-            const worldSource = getSource("/server/world");
-            const modsSource = getSource("/server/mods");
-            const configSource = getSource("/server/config");
-            const propsSource = getSource("/server/server.properties");
-
-            // Note: If auto-discovery fails (returns null), we fall back to hardcoded names below
-            // We use the known prefix "hunter-s-guild-server_" for local volumes
-
-            binds = [
-              `${worldSource || "hunter-s-guild-server_minecraft-world"}:/server/world`,
-              `${modsSource || "hunter-s-guild-server_minecraft-mods"}:/server/mods`,
-              `${configSource || "hunter-s-guild-server_minecraft-config"}:/server/config`,
-            ];
-
-            if (propsSource) {
-              binds.push(`${propsSource}:/server/server.properties`);
-              console.log(`[CreateContainer] Discovered server.properties bind: ${propsSource}`);
-            } else {
-              console.log("[CreateContainer] WARNING: Could not discover server.properties bind path. Server may start with default settings.");
-            }
-          } catch (err) {
-            console.warn(
-              "[CreateContainer] Bind discovery failed, falling back to defaults:",
-              err.message,
-            );
-            // Fallback to presumed defaults
-            binds = [
-              "hunter-s-guild-server_minecraft-world:/server/world",
-              "hunter-s-guild-server_minecraft-mods:/server/mods",
-              "hunter-s-guild-server_minecraft-config:/server/config",
-              // We can't safely guess the host path for server.properties without discovery
-            ];
-          }
-
-          console.log("[CreateContainer] Using Binds:", binds);
-
-          hostConfigToUse = {
-            Binds: binds,
-            PortBindings: {
-              "25565/tcp": [{ HostPort: "25565" }],
-              "25575/tcp": [{ HostPort: "25575" }] // RCON
-            },
-            Memory: 4 * 1024 * 1024 * 1024, // Default 4GB
-            RestartPolicy: { Name: "unless-stopped" },
-            NetworkMode: "hunter-s-guild-server_mc-network" // Use specific network if possible
-          };
-
-          // Check if we are in a network and attach to it
-          try {
-            // If we found API container, we can use its network settings
-            if (process.env.HOSTNAME) {
-              const networkMode = "hunter-s-guild-server_mc-network";
-              // Or just 'bridge' if using links, but compose uses a custom network
-              // The default network name is usually directory_default
-            }
-          } catch (e) { }
-
-          // Simpler: Just rely on default bridge or specific network if we know it.
-          // Docker compose network name: 'hunter-s-guild-server_mc-network' likely.
-          // Actually, inspection of 'mc-api' would reveal the NetworkID.
-          // Let's rely on HostConfig for now or standard Network settings.
-          // For now, let's omit NetworkMode and let Docker handle it or use 'bridge' if not specified? 
-          // Actually, if we don't specify, it goes to default bridge.
-          // We need it on the SAME network as API.
-
-          // Let's correct this: we should copy the NetworkMode from API container if possible.
-          // For now, I will use "hunter-s-guild-server_mc-network" as a best guess based on volume names.
-          hostConfigToUse.NetworkMode = "hunter-s-guild-server_mc-network";
-
-          newEnv = [
-            "EULA=TRUE",
-            "MEMORY=4G",
-            "MAX_MEMORY=4G",
-            "OA_TRUST=TRUE",
-            "TZ=UTC"
-          ];
-        }
-
-        newEnv.push(`MC_VERSION=${version}`);
-        newEnv.push(`SERVER_TYPE=${serverType}`);
-        if (serverType === "forge" && forgeVersion) {
-          newEnv.push(`FORGE_VERSION=${forgeVersion}`);
-        }
-
-        console.log(`Creating container with Image: ${imageToUse}`);
-        const newContainer = await docker.createContainer({
-          name: MC_CONTAINER_NAME,
-          Image: imageToUse,
-          Env: newEnv,
-          HostConfig: hostConfigToUse,
-          ExposedPorts: { "25565/tcp": {}, "25575/tcp": {} },
-          Tty: true,
-          OpenStdin: true,
-        });
-
-        console.log(`[CreateContainer] Container created successfully. ID: ${newContainer.id}`);
-
-        // Update .env file 
-        try {
-          const envPath = "/app/.env";
-          if (fs.existsSync(envPath)) {
-            let envContent = fs.readFileSync(envPath, "utf8");
-
-            const updateEnv = (key, value) => {
-              const regex = new RegExp(`^${key}=.*`, "m");
-              if (regex.test(envContent)) {
-                envContent = envContent.replace(regex, `${key}=${value}`);
-              } else {
-                if (envContent.endsWith('\n')) {
-                  envContent += `${key}=${value}\n`;
-                } else {
-                  envContent += `\n${key}=${value}`;
-                }
-              }
-            };
-
-            updateEnv("MC_VERSION", version);
-            updateEnv("SERVER_TYPE", serverType);
-            updateEnv("FORGE_VERSION", (serverType === "forge" && forgeVersion) ? forgeVersion : "");
-
-            fs.writeFileSync(envPath, envContent, "utf8");
-          }
-        } catch (envError) {
-          console.error("Failed to update .env file:", envError);
-        }
-
-        return { message: "Container created", container: newContainer };
-
-      } catch (err) {
-        console.error("[CreateContainer] CRITICAL ERROR:", err);
-        throw err;
+      // Stop the container if running
+      if (inspect.State.Running) {
+        console.log("Stopping server for version change...");
+        await container.stop({ t: 30 });
       }
+
+      // Remove old container
+      console.log("Removing old container...");
+      await container.remove();
+
+      imageToUse = inspect.Config.Image;
+      hostConfigToUse = inspect.HostConfig;
+
+      const oldEnv = inspect.Config.Env || [];
+      newEnv = oldEnv.filter(
+        (e) =>
+          !e.startsWith("MC_VERSION=") &&
+          !e.startsWith("SERVER_TYPE=") &&
+          !e.startsWith("FORGE_VERSION="),
+      );
+    } else {
+      // Container does not exist: Use defaults
+      console.log("No existing container found. Creating fresh one.");
+
+      // Try to auto-discover binds from API container (which is a sibling)
+      // This ensures we use the correct named volumes and host paths (like server.properties)
+      let binds = [];
+      try {
+        const os = require("os");
+        const apiContainer = docker.getContainer(os.hostname());
+        const apiInspect = await apiContainer.inspect();
+        const mounts = apiInspect.Mounts || [];
+
+        const getSource = (target) => {
+          const m = mounts.find((m) => m.Destination === target);
+          // For volumes use Name, for binds use Source (host path)
+          return m ? (m.Type === "volume" ? m.Name : m.Source) : null;
+        };
+
+        const worldSource = getSource("/server/world") || "minecraft-world";
+        const modsSource = getSource("/server/mods") || "minecraft-mods";
+        const configSource = getSource("/server/config") || "minecraft-config";
+        const propsSource = getSource("/server/server.properties");
+
+        binds = [
+          `${worldSource}:/server/world`,
+          `${modsSource}:/server/mods`,
+          `${configSource}:/server/config`,
+        ];
+
+        if (propsSource) {
+          binds.push(`${propsSource}:/server/server.properties`);
+        }
+      } catch (err) {
+        console.warn(
+          "Failed to inspect self for binds, falling back to defaults:",
+          err,
+        );
+        binds = [
+          "minecraft-world:/server/world",
+          "minecraft-mods:/server/mods",
+          "minecraft-config:/server/config",
+        ];
+      }
+
+      imageToUse = "minecraft-minecraft:latest";
+      hostConfigToUse = {
+        Binds: binds,
+        PortBindings: {
+          "25565/tcp": [{ HostPort: "25565" }],
+        },
+        Memory: 4 * 1024 * 1024 * 1024, // Default 4GB
+      };
+
+      newEnv = [
+        "EULA=TRUE",
+        "MEMORY=4G",
+        "MAX_MEMORY=4G",
+        "TYPE=FORGE",
+        "TZ=UTC",
+      ];
     }
 
-    const result = await createMinecraftContainer({
-      version,
-      serverType: newType,
-      forgeVersion,
-      forceRecreate: true
+    newEnv.push(`MC_VERSION=${version}`);
+    newEnv.push(`SERVER_TYPE=${newType}`);
+
+    if (newType === "forge" && forgeVersion) {
+      newEnv.push(`FORGE_VERSION=${forgeVersion}`);
+    }
+
+    // Create new container with updated environment
+    console.log(`Creating new container: ${newType} ${version}...`);
+    const newContainer = await docker.createContainer({
+      name: MC_CONTAINER_NAME,
+      Image: imageToUse,
+      Env: newEnv,
+      HostConfig: hostConfigToUse,
+      ExposedPorts: { "25565/tcp": {} },
+      Tty: true,
+      OpenStdin: true,
     });
 
-    const newContainer = result.container;
+    // Start the new container
+    console.log("Starting new container...");
+    await newContainer.start();
+
+    attachGlobalLogStream(newContainer);
+
+    // Update .env file to persist the version change
+    try {
+      const envPath = "/app/.env";
+      if (fs.existsSync(envPath)) {
+        let envContent = fs.readFileSync(envPath, "utf8");
+
+        const updateEnv = (key, value) => {
+          const regex = new RegExp(`^${key}=.*`, "m");
+          if (regex.test(envContent)) {
+            envContent = envContent.replace(regex, `${key}=${value}`);
+          } else {
+            envContent += `\n${key}=${value}`;
+          }
+        };
+
+        updateEnv("MC_VERSION", version);
+        updateEnv("SERVER_TYPE", newType);
+        updateEnv("FORGE_VERSION", forgeVersion || "");
+
+        fs.writeFileSync(envPath, envContent, "utf8");
+        console.log(".env file updated with new version settings");
+      }
+    } catch (envError) {
+      console.error("Failed to update .env file:", envError);
+      // Non-critical error, don't fail the request
+    }
 
     io.emit("serverStatusUpdate", {
       action: "version_changed",
@@ -899,8 +837,11 @@ app.post(
           // Clean up temp file if copy failed
           try {
             fs.unlinkSync(file.path);
-          } catch (e) { }
-          errors.push({ file: file.originalname, error: "Failed to save file" });
+          } catch (e) {}
+          errors.push({
+            file: file.originalname,
+            error: "Failed to save file",
+          });
         }
       }
 
@@ -911,14 +852,16 @@ app.post(
       res.json({
         message: `Uploaded ${uploadedFiles.length} mods successfully.`,
         uploaded: uploadedFiles,
-        errors: errors.length > 0 ? errors : undefined
+        errors: errors.length > 0 ? errors : undefined,
       });
     } catch (error) {
       console.error("Upload error:", error);
       // Clean up any remaining temp files in case of catastrophic failure
       if (req.files) {
-        req.files.forEach(file => {
-          try { if (fs.existsSync(file.path)) fs.unlinkSync(file.path); } catch (e) { }
+        req.files.forEach((file) => {
+          try {
+            if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+          } catch (e) {}
         });
       }
       // Send a clean error message to the user
@@ -975,7 +918,7 @@ app.post("/api/server/reset", authenticate, async (req, res) => {
           await new Promise((r) => setTimeout(r, 500));
           try {
             fs.rmSync(curPath, { recursive: true, force: true });
-          } catch (retryE) { }
+          } catch (retryE) {}
         }
       }
     };
@@ -1003,22 +946,25 @@ app.post("/api/server/reset", authenticate, async (req, res) => {
 
     // Recreate the container so it's ready to start
     console.log("[System] Recreating container...");
-    // Recreate the container so it's ready to start
-    console.log("[System] Recreating container after reset...");
-
-    // Read current config from env vars to restore consistent state
-    const currentVersion = process.env.MC_VERSION || "1.21.1";
-    const currentType = process.env.SERVER_TYPE || "vanilla";
-    const currentForge = process.env.FORGE_VERSION || "";
-
-    await createMinecraftContainer({
-      version: currentVersion,
-      serverType: currentType,
-      forgeVersion: currentForge,
-      forceRecreate: false // Since we already removed it above
-    });
-
-    io.emit("log", "[System] Server container recreated. Ready to start.");
+    const newContainerInfo = await getMinecraftContainer();
+    if (!newContainerInfo) {
+      // If we removed it, we might need to recreate it from image info or similar...
+      // Actually, 'start' command usually requires it to exist.
+      // The restart/start logic in this API assumes container exists.
+      // We need to re-create it using the same config as before.
+      // Ideally, we should have stored the config before deleting.
+      // However, `docker-compose up` usually handles creation.
+      // Since we are inside docker-compose, maybe we leave it deleted and let the user click "Start"
+      // which typically calls /api/start. BUT /api/start checks getMinecraftContainer().
+      // If it returns null, /api/start fails.
+      // So we MUST recreate it.
+      // Let's use the env variables (default or stored) to create it.
+      // But inspect.Config.Env is gone.
+      // ALTERNATIVE: Don't remove container. Just rely on retry logic.
+      // But EBUSY persistent means container is holding it.
+      // Let's try aggressive retry with longer delay first.
+      // AND emit logs so user sees it.
+    }
 
     res.json({
       message: "Server reset complete",
@@ -1193,10 +1139,15 @@ app.post("/api/files/delete", authenticate, (req, res) => {
   // Prevent deleting root level critical files/folders
   const relativePath = path.relative(SERVER_DIR, fullPath);
   const topLevel = relativePath.split(path.sep)[0];
-  const criticalPaths = ['server.jar', 'eula.txt', 'libraries', 'versions'];
+  const criticalPaths = ["server.jar", "eula.txt", "libraries", "versions"];
 
-  if (criticalPaths.includes(topLevel) || criticalPaths.includes(relativePath)) {
-    return res.status(403).json({ error: "Cannot delete critical server files" });
+  if (
+    criticalPaths.includes(topLevel) ||
+    criticalPaths.includes(relativePath)
+  ) {
+    return res
+      .status(403)
+      .json({ error: "Cannot delete critical server files" });
   }
 
   try {
@@ -1208,24 +1159,9 @@ app.post("/api/files/delete", authenticate, (req, res) => {
 
     if (stats.isDirectory()) {
       // Recursively delete directory
-      try {
-        fs.rmSync(fullPath, { recursive: true, force: true });
-        console.log(`Deleted directory: ${filePath}`);
-        res.json({ message: "Directory deleted successfully", path: filePath });
-      } catch (err) {
-        if (err.code === 'EBUSY') {
-          // Likely a Docker volume mount point. We can't remove the directory itself,
-          // but we can empty its contents.
-          console.log(`EBUSY on ${filePath}, attempting to empty directory...`);
-          const children = fs.readdirSync(fullPath);
-          for (const child of children) {
-            fs.rmSync(path.join(fullPath, child), { recursive: true, force: true });
-          }
-          res.json({ message: "Directory emptied (kept mount point)", path: filePath });
-        } else {
-          throw err;
-        }
-      }
+      fs.rmSync(fullPath, { recursive: true, force: true });
+      console.log(`Deleted directory: ${filePath}`);
+      res.json({ message: "Directory deleted successfully", path: filePath });
     } else {
       // Delete file
       fs.unlinkSync(fullPath);
@@ -1294,7 +1230,7 @@ async function attachGlobalLogStream(container, silent = false) {
       try {
         globalLogStream.destroy();
         console.log("[System] Destroyed previous log stream.");
-      } catch (e) { }
+      } catch (e) {}
       globalLogStream = null;
     }
 
@@ -1428,7 +1364,7 @@ function getModrinthHashes(filePath) {
   const content = fs.readFileSync(filePath);
   return {
     sha1: crypto.createHash("sha1").update(content).digest("hex"),
-    sha512: crypto.createHash("sha512").update(content).digest("hex")
+    sha512: crypto.createHash("sha512").update(content).digest("hex"),
   };
 }
 
@@ -1438,59 +1374,64 @@ function extractModMetadata(jarPath) {
     const zip = new AdmZip(jarPath);
 
     // Try Forge format (mods.toml)
-    const forgeToml = zip.getEntry('META-INF/mods.toml');
+    const forgeToml = zip.getEntry("META-INF/mods.toml");
     if (forgeToml) {
-      const content = forgeToml.getData().toString('utf8');
+      const content = forgeToml.getData().toString("utf8");
       // Basic TOML parsing for modId
       const modIdMatch = content.match(/modId\s*=\s*["']([^"']+)["']/);
       const versionMatch = content.match(/version\s*=\s*["']([^"']+)["']/);
-      const displayNameMatch = content.match(/displayName\s*=\s*["']([^"']+)["']/);
+      const displayNameMatch = content.match(
+        /displayName\s*=\s*["']([^"']+)["']/,
+      );
       return {
         modId: modIdMatch ? modIdMatch[1] : null,
         version: versionMatch ? versionMatch[1] : null,
         displayName: displayNameMatch ? displayNameMatch[1] : null,
-        loader: 'forge'
+        loader: "forge",
       };
     }
 
     // Try Fabric format (fabric.mod.json)
-    const fabricJson = zip.getEntry('fabric.mod.json');
+    const fabricJson = zip.getEntry("fabric.mod.json");
     if (fabricJson) {
-      const json = JSON.parse(fabricJson.getData().toString('utf8'));
+      const json = JSON.parse(fabricJson.getData().toString("utf8"));
       return {
         modId: json.id,
         version: json.version,
         displayName: json.name,
-        loader: 'fabric'
+        loader: "fabric",
       };
     }
 
     return null;
   } catch (e) {
-    console.error(`[Modpack] Failed to extract metadata from ${path.basename(jarPath)}:`, e.message);
+    console.error(
+      `[Modpack] Failed to extract metadata from ${path.basename(jarPath)}:`,
+      e.message,
+    );
     return null;
   }
 }
 
 // Query Modrinth API for mod download URL
-async function getModrinthDownloadUrl(modId, mcVersion, loader = 'forge') {
+async function getModrinthDownloadUrl(modId, mcVersion, loader = "forge") {
   try {
-    const axios = require('axios');
+    const axios = require("axios");
 
     // First try to find project by modId (slug)
     const searchUrl = `https://api.modrinth.com/v2/project/${modId}`;
     let projectRes;
     try {
       projectRes = await axios.get(searchUrl, {
-        headers: { 'User-Agent': 'HuntersGuild-ModpackGenerator/1.0' },
-        timeout: 5000
+        headers: { "User-Agent": "HuntersGuild-ModpackGenerator/1.0" },
+        timeout: 5000,
       });
     } catch (e) {
       // Project not found by slug, try search
       const searchQuery = `https://api.modrinth.com/v2/search?query=${encodeURIComponent(modId)}&facets=[["project_type:mod"]]&limit=5`;
       const searchRes = await axios.get(searchQuery, {
-        headers: { 'User-Agent': 'HuntersGuild-ModpackGenerator/1.0' },
-        timeout: 5000
+        headers: { "User-Agent": "HuntersGuild-ModpackGenerator/1.0" },
+        timeout: 5000,
       });
 
       if (!searchRes.data.hits || searchRes.data.hits.length === 0) {
@@ -1498,11 +1439,16 @@ async function getModrinthDownloadUrl(modId, mcVersion, loader = 'forge') {
       }
 
       // Find best match (exact slug match or first result)
-      const match = searchRes.data.hits.find(h => h.slug === modId) || searchRes.data.hits[0];
-      projectRes = await axios.get(`https://api.modrinth.com/v2/project/${match.slug}`, {
-        headers: { 'User-Agent': 'HuntersGuild-ModpackGenerator/1.0' },
-        timeout: 5000
-      });
+      const match =
+        searchRes.data.hits.find((h) => h.slug === modId) ||
+        searchRes.data.hits[0];
+      projectRes = await axios.get(
+        `https://api.modrinth.com/v2/project/${match.slug}`,
+        {
+          headers: { "User-Agent": "HuntersGuild-ModpackGenerator/1.0" },
+          timeout: 5000,
+        },
+      );
     }
 
     if (!projectRes.data) return null;
@@ -1512,51 +1458,56 @@ async function getModrinthDownloadUrl(modId, mcVersion, loader = 'forge') {
     // Get versions for this MC version and loader
     const versionsUrl = `https://api.modrinth.com/v2/project/${projectSlug}/version?game_versions=["${mcVersion}"]&loaders=["${loader}"]`;
     const versionsRes = await axios.get(versionsUrl, {
-      headers: { 'User-Agent': 'HuntersGuild-ModpackGenerator/1.0' },
-      timeout: 5000
+      headers: { "User-Agent": "HuntersGuild-ModpackGenerator/1.0" },
+      timeout: 5000,
     });
 
     if (!versionsRes.data || versionsRes.data.length === 0) {
       // Try without version filter
       const allVersionsUrl = `https://api.modrinth.com/v2/project/${projectSlug}/version?loaders=["${loader}"]`;
       const allVersionsRes = await axios.get(allVersionsUrl, {
-        headers: { 'User-Agent': 'HuntersGuild-ModpackGenerator/1.0' },
-        timeout: 5000
+        headers: { "User-Agent": "HuntersGuild-ModpackGenerator/1.0" },
+        timeout: 5000,
       });
 
       if (!allVersionsRes.data || allVersionsRes.data.length === 0) return null;
 
       // Find closest MC version
-      const targetMajor = mcVersion.split('.').slice(0, 2).join('.');
-      const matchingVersion = allVersionsRes.data.find(v =>
-        v.game_versions.some(gv => gv.startsWith(targetMajor))
+      const targetMajor = mcVersion.split(".").slice(0, 2).join(".");
+      const matchingVersion = allVersionsRes.data.find((v) =>
+        v.game_versions.some((gv) => gv.startsWith(targetMajor)),
       );
 
       if (!matchingVersion) return null;
 
-      const primaryFile = matchingVersion.files.find(f => f.primary) || matchingVersion.files[0];
+      const primaryFile =
+        matchingVersion.files.find((f) => f.primary) ||
+        matchingVersion.files[0];
       return {
         url: primaryFile.url,
         sha512: primaryFile.hashes.sha512,
         sha1: primaryFile.hashes.sha1,
         size: primaryFile.size,
-        source: 'modrinth'
+        source: "modrinth",
       };
     }
 
     // Get the first (latest) version
     const latestVersion = versionsRes.data[0];
-    const primaryFile = latestVersion.files.find(f => f.primary) || latestVersion.files[0];
+    const primaryFile =
+      latestVersion.files.find((f) => f.primary) || latestVersion.files[0];
 
     return {
       url: primaryFile.url,
       sha512: primaryFile.hashes.sha512,
       sha1: primaryFile.hashes.sha1,
       size: primaryFile.size,
-      source: 'modrinth'
+      source: "modrinth",
     };
   } catch (e) {
-    console.log(`[Modpack] Could not fetch Modrinth URL for ${modId}: ${e.message}`);
+    console.log(
+      `[Modpack] Could not fetch Modrinth URL for ${modId}: ${e.message}`,
+    );
     return null;
   }
 }
@@ -1578,13 +1529,19 @@ async function generateModpackManifest() {
     let domain = process.env.DOMAIN || "http://localhost";
 
     // Ensure domain has protocol (default to https for production, http for localhost)
-    if (domain && !domain.startsWith('http://') && !domain.startsWith('https://')) {
-      domain = domain.includes('localhost') ? `http://${domain}` : `https://${domain}`;
+    if (
+      domain &&
+      !domain.startsWith("http://") &&
+      !domain.startsWith("https://")
+    ) {
+      domain = domain.includes("localhost")
+        ? `http://${domain}`
+        : `https://${domain}`;
     }
 
     // Scan mods folder
     const modFiles = fs.existsSync(modsDir)
-      ? fs.readdirSync(modsDir).filter(f => f.endsWith('.jar'))
+      ? fs.readdirSync(modsDir).filter((f) => f.endsWith(".jar"))
       : [];
 
     console.log(`[Modpack] Processing ${modFiles.length} mods...`);
@@ -1608,23 +1565,33 @@ async function generateModpackManifest() {
 
       // Try to get Modrinth download URL
       if (metadata && metadata.modId) {
-        console.log(`[Modpack]   Found modId: ${metadata.modId}${metadata.displayName ? ` (${metadata.displayName})` : ''}`);
-        const modrinthData = await getModrinthDownloadUrl(metadata.modId, mcVersion, metadata.loader || 'forge');
+        console.log(
+          `[Modpack]   Found modId: ${metadata.modId}${metadata.displayName ? ` (${metadata.displayName})` : ""}`,
+        );
+        const modrinthData = await getModrinthDownloadUrl(
+          metadata.modId,
+          mcVersion,
+          metadata.loader || "forge",
+        );
 
         if (modrinthData) {
           downloadUrl = modrinthData.url;
           hashes = {
             sha1: modrinthData.sha1,
-            sha512: modrinthData.sha512
+            sha512: modrinthData.sha512,
           };
           fileSize = modrinthData.size;
           modrinthCount++;
           console.log(`[Modpack]   ✅ Using Modrinth CDN`);
         } else {
-          console.log(`[Modpack]   ⚠️  Not found on Modrinth, using server URL`);
+          console.log(
+            `[Modpack]   ⚠️  Not found on Modrinth, using server URL`,
+          );
         }
       } else {
-        console.log(`[Modpack]   ⚠️  Could not extract modId, using server URL`);
+        console.log(
+          `[Modpack]   ⚠️  Could not extract modId, using server URL`,
+        );
       }
 
       // Fallback to server URL if Modrinth lookup failed
@@ -1639,14 +1606,16 @@ async function generateModpackManifest() {
         hashes: hashes,
         env: {
           client: "required",
-          server: "required"
+          server: "required",
         },
         downloads: [downloadUrl],
-        fileSize: fileSize
+        fileSize: fileSize,
       });
     }
 
-    console.log(`[Modpack] ✅ Summary: ${modrinthCount} from Modrinth CDN, ${serverCount} from server`);
+    console.log(
+      `[Modpack] ✅ Summary: ${modrinthCount} from Modrinth CDN, ${serverCount} from server`,
+    );
 
     // Generate modrinth.index.json
     const modrinthIndex = {
@@ -1658,15 +1627,15 @@ async function generateModpackManifest() {
       files: files,
       dependencies: {
         minecraft: mcVersion,
-        forge: forgeVersion
-      }
+        forge: forgeVersion,
+      },
     };
 
     // Write modrinth.index.json
     fs.writeFileSync(
       path.join(modpackDir, "modrinth.index.json"),
       JSON.stringify(modrinthIndex, null, 2),
-      "utf8"
+      "utf8",
     );
 
     console.log(`[Modpack] ✅ Generated modpack manifest`);
@@ -1678,7 +1647,7 @@ async function generateModpackManifest() {
       serverCount,
       mcVersion,
       forgeVersion,
-      packUrl: `${process.env.DOMAIN || 'http://localhost'}/modpack/pack.toml`
+      packUrl: `${process.env.DOMAIN || "http://localhost"}/modpack/pack.toml`,
     };
   } catch (error) {
     console.error("Error generating modpack:", error);
@@ -1694,7 +1663,10 @@ app.post("/api/modpack/generate", authenticate, async (req, res) => {
     if (serverType.toLowerCase() !== "forge") {
       return res.status(400).json({
         error: "Modpack generation is only available for Forge servers",
-        userMessage: "This feature is only available when running a Forge server. Your server is currently set to " + serverType + "."
+        userMessage:
+          "This feature is only available when running a Forge server. Your server is currently set to " +
+          serverType +
+          ".",
       });
     }
 
@@ -1703,15 +1675,17 @@ app.post("/api/modpack/generate", authenticate, async (req, res) => {
     if (!fs.existsSync(modsDir)) {
       return res.status(400).json({
         error: "Mods folder not found",
-        userMessage: "No mods folder found. Please make sure your Forge server is properly set up."
+        userMessage:
+          "No mods folder found. Please make sure your Forge server is properly set up.",
       });
     }
 
-    const modFiles = fs.readdirSync(modsDir).filter(f => f.endsWith('.jar'));
+    const modFiles = fs.readdirSync(modsDir).filter((f) => f.endsWith(".jar"));
     if (modFiles.length === 0) {
       return res.status(400).json({
         error: "No mods found",
-        userMessage: "No mods found in the mods folder. Please add at least one mod (.jar file) before generating a modpack."
+        userMessage:
+          "No mods found in the mods folder. Please add at least one mod (.jar file) before generating a modpack.",
       });
     }
 
@@ -1720,7 +1694,8 @@ app.post("/api/modpack/generate", authenticate, async (req, res) => {
   } catch (error) {
     res.status(500).json({
       error: error.message,
-      userMessage: "An error occurred while generating the modpack. Please try again."
+      userMessage:
+        "An error occurred while generating the modpack. Please try again.",
     });
   }
 });
@@ -1736,7 +1711,7 @@ app.get("/api/modpack/status", authenticate, async (req, res) => {
 
     const modsDir = MODS_DIR;
     const modFiles = fs.existsSync(modsDir)
-      ? fs.readdirSync(modsDir).filter(f => f.endsWith('.jar'))
+      ? fs.readdirSync(modsDir).filter((f) => f.endsWith(".jar"))
       : [];
 
     if (!fs.existsSync(indexFile)) {
@@ -1746,7 +1721,7 @@ app.get("/api/modpack/status", authenticate, async (req, res) => {
         lastGenerated: null,
         isForge,
         serverType,
-        canGenerate: isForge && modFiles.length > 0
+        canGenerate: isForge && modFiles.length > 0,
       });
     }
 
@@ -1758,7 +1733,7 @@ app.get("/api/modpack/status", authenticate, async (req, res) => {
       lastGenerated: stats.mtime,
       isForge,
       serverType,
-      canGenerate: isForge && modFiles.length > 0
+      canGenerate: isForge && modFiles.length > 0,
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1771,8 +1746,8 @@ app.get("/modpack/pack.toml", (req, res) => {
   if (!fs.existsSync(packFile)) {
     return res.status(404).send("Modpack not generated yet");
   }
-  res.setHeader('Content-Type', 'text/plain');
-  res.setHeader('Content-Disposition', 'attachment; filename="pack.toml"');
+  res.setHeader("Content-Type", "text/plain");
+  res.setHeader("Content-Disposition", 'attachment; filename="pack.toml"');
   res.sendFile(packFile);
 });
 
@@ -1782,8 +1757,8 @@ app.get("/modpack/index.toml", (req, res) => {
   if (!fs.existsSync(indexFile)) {
     return res.status(404).send("Modpack not generated yet");
   }
-  res.setHeader('Content-Type', 'text/plain');
-  res.setHeader('Content-Disposition', 'attachment; filename="index.toml"');
+  res.setHeader("Content-Type", "text/plain");
+  res.setHeader("Content-Disposition", 'attachment; filename="index.toml"');
   res.sendFile(indexFile);
 });
 
@@ -1794,8 +1769,8 @@ app.get("/modpack/mods/:filename", (req, res) => {
   if (!fs.existsSync(modFile)) {
     return res.status(404).send("Mod metadata not found");
   }
-  res.setHeader('Content-Type', 'text/plain');
-  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.setHeader("Content-Type", "text/plain");
+  res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
   res.sendFile(modFile);
 });
 
@@ -1806,16 +1781,24 @@ app.get("/modpack/download", async (req, res) => {
     const indexFile = path.join(modpackDir, "modrinth.index.json");
 
     if (!fs.existsSync(indexFile)) {
-      return res.status(404).send("Modpack not generated yet. Please generate the modpack first.");
+      return res
+        .status(404)
+        .send("Modpack not generated yet. Please generate the modpack first.");
     }
 
     // Read modrinth.index.json to get modpack name for filename
     const indexContent = JSON.parse(fs.readFileSync(indexFile, "utf8"));
-    const packName = (indexContent.name || "modpack").replace(/[^a-zA-Z0-9-_]/g, "_");
+    const packName = (indexContent.name || "modpack").replace(
+      /[^a-zA-Z0-9-_]/g,
+      "_",
+    );
 
     // Set headers for ZIP download
     res.setHeader("Content-Type", "application/x-modrinth-modpack+zip");
-    res.setHeader("Content-Disposition", `attachment; filename="${packName}.mrpack"`);
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${packName}.mrpack"`,
+    );
 
     // Create ZIP archive
     const archive = archiver("zip", { zlib: { level: 9 } });

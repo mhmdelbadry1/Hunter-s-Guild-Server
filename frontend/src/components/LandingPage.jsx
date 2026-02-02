@@ -631,13 +631,15 @@ function LandingPage() {
           "Content-Type": "multipart/form-data",
         },
         onUploadProgress: (progressEvent) => {
-          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          const percentCompleted = Math.round(
+            (progressEvent.loaded * 100) / progressEvent.total,
+          );
           setUploadProgress({
             percent: percentCompleted,
             totalSize,
-            uploadedSize: progressEvent.loaded
+            uploadedSize: progressEvent.loaded,
           });
-        }
+        },
       });
       showNotification("Mods uploaded successfully!");
       setUploadProgress(null);
@@ -647,7 +649,7 @@ function LandingPage() {
       setUploadProgress(null);
       showNotification(
         "Error uploading mods: " +
-        (error.response?.data?.error || error.message),
+          (error.response?.data?.error || error.message),
         { autoClose: 5000 },
       );
     }
@@ -714,7 +716,7 @@ function LandingPage() {
       console.error("Error changing version:", error);
       showNotification(
         "Error changing version: " +
-        (error.response?.data?.error || error.message),
+          (error.response?.data?.error || error.message),
       );
     }
     setLoading(false);
@@ -740,8 +742,8 @@ function LandingPage() {
   const resetServer = async () => {
     const confirmed = window.confirm(
       "⚠️ RESET SERVER\n\n" +
-      "This will DELETE your world and start fresh.\n\n" +
-      "Are you sure? This cannot be undone!",
+        "This will DELETE your world and start fresh.\n\n" +
+        "Are you sure? This cannot be undone!",
     );
 
     if (!confirmed) return;
@@ -768,7 +770,7 @@ function LandingPage() {
       console.error("Error resetting server:", error);
       showNotification(
         "Error resetting server: " +
-        (error.response?.data?.error || error.message),
+          (error.response?.data?.error || error.message),
         { autoClose: 5000 },
       );
     }
@@ -1023,7 +1025,9 @@ function LandingPage() {
                   }}
                 />
               </label>
-              <p className="upload-hint">Max 100MB per file. Supports multiple files.</p>
+              <p className="upload-hint">
+                Max 100MB per file. Supports multiple files.
+              </p>
 
               {uploadProgress && (
                 <div className="upload-progress-container">
@@ -1036,7 +1040,8 @@ function LandingPage() {
                   <div className="progress-stats">
                     <span>{uploadProgress.percent}%</span>
                     <span>
-                      {(uploadProgress.uploadedSize / (1024 * 1024)).toFixed(2)} MB /
+                      {(uploadProgress.uploadedSize / (1024 * 1024)).toFixed(2)}{" "}
+                      MB /
                       {(uploadProgress.totalSize / (1024 * 1024)).toFixed(2)} MB
                     </span>
                   </div>
@@ -1195,12 +1200,13 @@ function LandingPage() {
               ) : (
                 <div className="status-badge-container">
                   <div
-                    className={`status-badge ${serverAction !== "idle"
-                      ? "status-working"
-                      : serverInfo.running
-                        ? "status-online"
-                        : "status-offline"
-                      }`}
+                    className={`status-badge ${
+                      serverAction !== "idle"
+                        ? "status-working"
+                        : serverInfo.running
+                          ? "status-online"
+                          : "status-offline"
+                    }`}
                   >
                     <span className="status-indicator">●</span>
                     <span className="status-text">
@@ -1561,9 +1567,9 @@ function LandingPage() {
         <div className="player-management">
           <h3>Player Management</h3>
           {serverInfo &&
-            serverInfo.players &&
-            serverInfo.players.sample &&
-            serverInfo.players.sample.length > 0 ? (
+          serverInfo.players &&
+          serverInfo.players.sample &&
+          serverInfo.players.sample.length > 0 ? (
             <ul>
               {serverInfo.players.sample.map((p) => (
                 <li key={p.id}>

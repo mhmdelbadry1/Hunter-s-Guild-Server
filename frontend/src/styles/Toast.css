@@ -8,9 +8,12 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4),
-              0 0 0 1px rgba(255, 255, 255, 0.1);
-  animation: slideInRight 0.3s ease, fadeOut 0.3s ease 2.7s forwards;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.1);
+  animation:
+    slideInRight 0.3s ease,
+    fadeOut 0.3s ease 2.7s forwards;
   z-index: 10001;
   min-width: 300px;
   max-width: 500px;

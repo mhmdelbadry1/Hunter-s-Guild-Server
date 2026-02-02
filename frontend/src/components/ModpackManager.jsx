@@ -36,10 +36,10 @@ function ModpackManager({ onClose }) {
     setGenerating(true);
     setError(null);
     setSuccessMessage(null);
-    
+
     const startTime = Date.now();
     const MIN_LOADING_TIME = 2000; // 2 seconds minimum for better UX
-    
+
     try {
       const token = localStorage.getItem("jwtToken");
       const res = await axios.post(
@@ -47,23 +47,23 @@ function ModpackManager({ onClose }) {
         {},
         {
           headers: { Authorization: `Bearer ${token}` },
-        }
+        },
       );
-      
+
       // Calculate remaining time to reach minimum loading duration
       const elapsedTime = Date.now() - startTime;
       const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsedTime);
-      
+
       // Wait for remaining time before showing success
-      await new Promise(resolve => setTimeout(resolve, remainingTime));
-      
+      await new Promise((resolve) => setTimeout(resolve, remainingTime));
+
       setSuccessMessage({
         modCount: res.data.modCount,
         mcVersion: res.data.mcVersion,
         forgeVersion: res.data.forgeVersion,
-        packUrl: res.data.packUrl
+        packUrl: res.data.packUrl,
       });
-      
+
       // Refresh status after showing success
       setTimeout(() => {
         fetchStatus();
@@ -72,9 +72,12 @@ function ModpackManager({ onClose }) {
       // Still wait minimum time even on error for consistent UX
       const elapsedTime = Date.now() - startTime;
       const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsedTime);
-      await new Promise(resolve => setTimeout(resolve, remainingTime));
-      
-      const userMessage = err.response?.data?.userMessage || err.response?.data?.error || "Failed to generate modpack";
+      await new Promise((resolve) => setTimeout(resolve, remainingTime));
+
+      const userMessage =
+        err.response?.data?.userMessage ||
+        err.response?.data?.error ||
+        "Failed to generate modpack";
       setError(userMessage);
       console.error(err);
     } finally {
@@ -88,7 +91,7 @@ function ModpackManager({ onClose }) {
     return date.toLocaleString();
   };
 
-  const showToast = (message, type = 'success') => {
+  const showToast = (message, type = "success") => {
     setToast({ message, type });
   };
 
@@ -98,7 +101,7 @@ function ModpackManager({ onClose }) {
 
   const canGenerate = status?.canGenerate;
   const isForge = status?.isForge;
-  
+
   // Check if modpack is valid (exists AND has mods currently)
   const hasModsNow = status?.modCount > 0;
   const packExists = status?.exists;
@@ -107,7 +110,10 @@ function ModpackManager({ onClose }) {
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content modpack-modal" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="modal-content modpack-modal"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="modal-header">
           <div className="modal-title-section">
             <h2>🎮 Modpack Distribution</h2>
@@ -161,7 +167,11 @@ function ModpackManager({ onClose }) {
                   <div className="warning-icon">⚠️</div>
                   <div className="warning-content">
                     <strong>Forge Server Required</strong>
-                    <p>This feature is only available for Forge servers. Your server is currently running <strong>{status?.serverType || 'Vanilla'}</strong>.</p>
+                    <p>
+                      This feature is only available for Forge servers. Your
+                      server is currently running{" "}
+                      <strong>{status?.serverType || "Vanilla"}</strong>.
+                    </p>
                   </div>
                 </div>
               )}
@@ -171,7 +181,10 @@ function ModpackManager({ onClose }) {
                   <div className="warning-icon">⚠️</div>
                   <div className="warning-content">
                     <strong>No Mods Found</strong>
-                    <p>Please add at least one mod (.jar file) to the mods folder before generating a modpack.</p>
+                    <p>
+                      Please add at least one mod (.jar file) to the mods folder
+                      before generating a modpack.
+                    </p>
                   </div>
                 </div>
               )}
@@ -182,7 +195,10 @@ function ModpackManager({ onClose }) {
                   <div className="error-icon">🚫</div>
                   <div className="error-content">
                     <strong>Modpack is Invalid</strong>
-                    <p>The mods folder is now empty. The previously generated modpack is no longer valid. Add mods and regenerate.</p>
+                    <p>
+                      The mods folder is now empty. The previously generated
+                      modpack is no longer valid. Add mods and regenerate.
+                    </p>
                   </div>
                 </div>
               )}
@@ -193,7 +209,9 @@ function ModpackManager({ onClose }) {
                   <div className="status-icon">🖥️</div>
                   <div className="status-info">
                     <span className="status-label">Server Type</span>
-                    <span className="status-value">{status?.serverType || 'Unknown'}</span>
+                    <span className="status-value">
+                      {status?.serverType || "Unknown"}
+                    </span>
                   </div>
                 </div>
 
@@ -201,7 +219,9 @@ function ModpackManager({ onClose }) {
                   <div className="status-icon">📦</div>
                   <div className="status-info">
                     <span className="status-label">Mods Found</span>
-                    <span className="status-value">{status?.modCount || 0}</span>
+                    <span className="status-value">
+                      {status?.modCount || 0}
+                    </span>
                   </div>
                 </div>
 
@@ -209,18 +229,28 @@ function ModpackManager({ onClose }) {
                   <div className="status-icon">🕒</div>
                   <div className="status-info">
                     <span className="status-label">Last Updated</span>
-                    <span className="status-value">{formatDate(status?.lastGenerated)}</span>
+                    <span className="status-value">
+                      {formatDate(status?.lastGenerated)}
+                    </span>
                   </div>
                 </div>
 
                 <div className="status-card-item">
-                  <div className={`status-icon ${isPackValid ? 'status-ready' : 'status-pending'}`}>
-                    {isPackValid ? '✅' : isPackOutdated ? '🚫' : '⏳'}
+                  <div
+                    className={`status-icon ${isPackValid ? "status-ready" : "status-pending"}`}
+                  >
+                    {isPackValid ? "✅" : isPackOutdated ? "🚫" : "⏳"}
                   </div>
                   <div className="status-info">
                     <span className="status-label">Pack Status</span>
-                    <span className={`status-value ${isPackValid ? 'text-success' : isPackOutdated ? 'text-error' : 'text-warning'}`}>
-                      {isPackValid ? 'Ready for Players' : isPackOutdated ? 'Invalid (No Mods)' : 'Not Generated'}
+                    <span
+                      className={`status-value ${isPackValid ? "text-success" : isPackOutdated ? "text-error" : "text-warning"}`}
+                    >
+                      {isPackValid
+                        ? "Ready for Players"
+                        : isPackOutdated
+                          ? "Invalid (No Mods)"
+                          : "Not Generated"}
                     </span>
                   </div>
                 </div>
@@ -230,9 +260,12 @@ function ModpackManager({ onClose }) {
               {isPackValid && (
                 <div className="pack-url-section">
                   <h3>📦 Download Modpack</h3>
-                  <p className="pack-url-hint">Download the .mrpack file to import in Prism Launcher. Mods download from Modrinth CDN (fast!) when available.</p>
+                  <p className="pack-url-hint">
+                    Download the .mrpack file to import in Prism Launcher. Mods
+                    download from Modrinth CDN (fast!) when available.
+                  </p>
                   <div className="download-button-group">
-                    <a 
+                    <a
                       href="/modpack/download"
                       download
                       className="download-btn-primary"
@@ -241,7 +274,11 @@ function ModpackManager({ onClose }) {
                       Download .mrpack
                     </a>
                     <p className="download-help-text">
-                      In Prism Launcher: <strong>Add Instance → Import → Select the downloaded .mrpack file</strong>
+                      In Prism Launcher:{" "}
+                      <strong>
+                        Add Instance → Import → Select the downloaded .mrpack
+                        file
+                      </strong>
                     </p>
                   </div>
                 </div>
@@ -250,7 +287,7 @@ function ModpackManager({ onClose }) {
               {/* Action Button */}
               <div className="modal-actions">
                 <button
-                  className={`generate-btn ${!canGenerate || generating ? 'disabled' : ''}`}
+                  className={`generate-btn ${!canGenerate || generating ? "disabled" : ""}`}
                   onClick={handleGenerate}
                   disabled={generating || !canGenerate}
                 >
@@ -266,12 +303,14 @@ function ModpackManager({ onClose }) {
                     </>
                   )}
                 </button>
-                
+
                 {!canGenerate && isForge && status?.modCount === 0 && (
                   <p className="action-hint">Add mods to your server first</p>
                 )}
                 {!isForge && (
-                  <p className="action-hint">Switch to a Forge server to use this feature</p>
+                  <p className="action-hint">
+                    Switch to a Forge server to use this feature
+                  </p>
                 )}
               </div>
 
@@ -281,7 +320,9 @@ function ModpackManager({ onClose }) {
                 <ol className="help-steps">
                   <li>
                     <span className="step-number">1</span>
-                    <span>Click "Generate Modpack" after adding/updating server mods</span>
+                    <span>
+                      Click "Generate Modpack" after adding/updating server mods
+                    </span>
                   </li>
                   <li>
                     <span className="step-number">2</span>
@@ -289,20 +330,31 @@ function ModpackManager({ onClose }) {
                   </li>
                   <li>
                     <span className="step-number">3</span>
-                    <span>Players open Prism Launcher → Add Instance → Import from zip</span>
+                    <span>
+                      Players open Prism Launcher → Add Instance → Import from
+                      zip
+                    </span>
                   </li>
                   <li>
                     <span className="step-number">4</span>
-                    <span>They paste your URL and Prism downloads all mods automatically</span>
+                    <span>
+                      They paste your URL and Prism downloads all mods
+                      automatically
+                    </span>
                   </li>
                   <li>
                     <span className="step-number">5</span>
-                    <span>Regenerate after every mod change to keep everyone in sync</span>
+                    <span>
+                      Regenerate after every mod change to keep everyone in sync
+                    </span>
                   </li>
                 </ol>
                 <div className="help-tip">
                   <span className="tip-icon">💡</span>
-                  <span><strong>Tip:</strong> Always regenerate after adding or removing mods!</span>
+                  <span>
+                    <strong>Tip:</strong> Always regenerate after adding or
+                    removing mods!
+                  </span>
                 </div>
               </div>
             </>
@@ -310,9 +362,9 @@ function ModpackManager({ onClose }) {
         </div>
       </div>
       {toast && (
-        <Toast 
-          message={toast.message} 
-          type={toast.type} 
+        <Toast
+          message={toast.message}
+          type={toast.type}
           onClose={() => setToast(null)}
         />
       )}
