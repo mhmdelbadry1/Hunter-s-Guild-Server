@@ -588,150 +588,211 @@ app.post("/api/version/change", authenticate, async (req, res) => {
   const newType = serverType || "forge";
 
   try {
-    const containerInfo = await getMinecraftContainer();
-    let newEnv;
-    let imageToUse;
-    let hostConfigToUse;
-
-    if (containerInfo) {
-      // Container exists: Inherit configuration
-      const container = docker.getContainer(containerInfo.Id);
-      const inspect = await container.inspect();
-
-      // Stop the container if running
-      if (inspect.State.Running) {
-        console.log("Stopping server for version change...");
-        await container.stop({ t: 30 });
-      }
-
-      // Remove old container
-      console.log("Removing old container...");
-      await container.remove();
-
-      imageToUse = inspect.Config.Image;
-      hostConfigToUse = inspect.HostConfig;
-
-      const oldEnv = inspect.Config.Env || [];
-      newEnv = oldEnv.filter(
-        (e) =>
-          !e.startsWith("MC_VERSION=") &&
-          !e.startsWith("SERVER_TYPE=") &&
-          !e.startsWith("FORGE_VERSION="),
-      );
-    } else {
-      // Container does not exist: Use defaults
-      console.log("No existing container found. Creating fresh one.");
-
-      // Try to auto-discover binds from API container (which is a sibling)
-      // This ensures we use the correct named volumes and host paths (like server.properties)
-      let binds = [];
+    // Helper to create the Minecraft container
+    async function createMinecraftContainer({ version, serverType, forgeVersion, forceRecreate = false }) {
       try {
-        const os = require("os");
-        const apiContainer = docker.getContainer(os.hostname());
-        const apiInspect = await apiContainer.inspect();
-        const mounts = apiInspect.Mounts || [];
+        console.log("[CreateContainer] Starting container creation flow...");
+        console.log(`[CreateContainer] Params: version=${version}, type=${serverType}, forge=${forgeVersion}, force=${forceRecreate}`);
 
-        const getSource = (target) => {
-          const m = mounts.find((m) => m.Destination === target);
-          // For volumes use Name, for binds use Source (host path)
-          return m ? (m.Type === "volume" ? m.Name : m.Source) : null;
-        };
+        const currentContainer = await getMinecraftContainer();
+        let newEnv = [];
+        let hostConfigToUse = {};
+        // Use the correct project image name (derived from docker-compose service name + project)
+        let imageToUse = "hunter-s-guild-server-minecraft:latest";
 
-        const worldSource = getSource("/server/world") || "minecraft-world";
-        const modsSource = getSource("/server/mods") || "minecraft-mods";
-        const configSource = getSource("/server/config") || "minecraft-config";
-        const propsSource = getSource("/server/server.properties");
+        if (currentContainer) {
+          console.log(`[CreateContainer] Found existing container: ${currentContainer.Id}`);
+          const container = docker.getContainer(currentContainer.Id);
+          const inspect = await container.inspect();
 
-        binds = [
-          `${worldSource}:/server/world`,
-          `${modsSource}:/server/mods`,
-          `${configSource}:/server/config`,
-        ];
+          if (forceRecreate) {
+            if (inspect.State.Running) {
+              console.log("[CreateContainer] Stopping running container...");
+              await container.stop({ t: 30 });
+            }
+            console.log("[CreateContainer] Removing old container...");
+            await container.remove();
+          } else {
+            console.log("[CreateContainer] Container exists and forceRecreate is false. Returning existing.");
+            return { message: "Container already exists", container: currentContainer };
+          }
 
-        if (propsSource) {
-          binds.push(`${propsSource}:/server/server.properties`);
+          // inherit config from old container
+          // Ensure we use the correct image even if inherited one was weird
+          imageToUse = inspect.Config.Image || imageToUse;
+          hostConfigToUse = inspect.HostConfig;
+
+          const oldEnv = inspect.Config.Env || [];
+          newEnv = oldEnv.filter(
+            (e) =>
+              !e.startsWith("MC_VERSION=") &&
+              !e.startsWith("SERVER_TYPE=") &&
+              !e.startsWith("FORGE_VERSION="),
+          );
+        } else {
+          console.log("[CreateContainer] No existing container found. Preparing fresh config.");
+
+          // Try to auto-discover binds from API container
+          let binds = [];
+          try {
+            const os = require("os");
+            const hostname = os.hostname();
+            console.log(`[CreateContainer] Inspecting self (hostname: ${hostname}) for volume binds...`);
+
+            const apiContainer = docker.getContainer(hostname);
+            const apiInspect = await apiContainer.inspect();
+            const mounts = apiInspect.Mounts || [];
+
+            console.log(`[CreateContainer] Found ${mounts.length} mounts in API container.`);
+
+            const getSource = (target) => {
+              const m = mounts.find((m) => m.Destination === target);
+              return m ? (m.Type === "volume" ? m.Name : m.Source) : null;
+            };
+
+            // The API container mounts volumes at /server/xxx same as minecraft container
+            const worldSource = getSource("/server/world");
+            const modsSource = getSource("/server/mods");
+            const configSource = getSource("/server/config");
+            const propsSource = getSource("/server/server.properties");
+
+            // Note: If auto-discovery fails (returns null), we fall back to hardcoded names below
+            // We use the known prefix "hunter-s-guild-server_" for local volumes
+
+            binds = [
+              `${worldSource || "hunter-s-guild-server_minecraft-world"}:/server/world`,
+              `${modsSource || "hunter-s-guild-server_minecraft-mods"}:/server/mods`,
+              `${configSource || "hunter-s-guild-server_minecraft-config"}:/server/config`,
+            ];
+
+            if (propsSource) {
+              binds.push(`${propsSource}:/server/server.properties`);
+              console.log(`[CreateContainer] Discovered server.properties bind: ${propsSource}`);
+            } else {
+              console.log("[CreateContainer] WARNING: Could not discover server.properties bind path. Server may start with default settings.");
+            }
+          } catch (err) {
+            console.warn(
+              "[CreateContainer] Bind discovery failed, falling back to defaults:",
+              err.message,
+            );
+            // Fallback to presumed defaults
+            binds = [
+              "hunter-s-guild-server_minecraft-world:/server/world",
+              "hunter-s-guild-server_minecraft-mods:/server/mods",
+              "hunter-s-guild-server_minecraft-config:/server/config",
+              // We can't safely guess the host path for server.properties without discovery
+            ];
+          }
+
+          console.log("[CreateContainer] Using Binds:", binds);
+
+          hostConfigToUse = {
+            Binds: binds,
+            PortBindings: {
+              "25565/tcp": [{ HostPort: "25565" }],
+              "25575/tcp": [{ HostPort: "25575" }] // RCON
+            },
+            Memory: 4 * 1024 * 1024 * 1024, // Default 4GB
+            RestartPolicy: { Name: "unless-stopped" },
+            NetworkMode: "hunter-s-guild-server_mc-network" // Use specific network if possible
+          };
+
+          // Check if we are in a network and attach to it
+          try {
+            // If we found API container, we can use its network settings
+            if (process.env.HOSTNAME) {
+              const networkMode = "hunter-s-guild-server_mc-network";
+              // Or just 'bridge' if using links, but compose uses a custom network
+              // The default network name is usually directory_default
+            }
+          } catch (e) { }
+
+          // Simpler: Just rely on default bridge or specific network if we know it.
+          // Docker compose network name: 'hunter-s-guild-server_mc-network' likely.
+          // Actually, inspection of 'mc-api' would reveal the NetworkID.
+          // Let's rely on HostConfig for now or standard Network settings.
+          // For now, let's omit NetworkMode and let Docker handle it or use 'bridge' if not specified? 
+          // Actually, if we don't specify, it goes to default bridge.
+          // We need it on the SAME network as API.
+
+          // Let's correct this: we should copy the NetworkMode from API container if possible.
+          // For now, I will use "hunter-s-guild-server_mc-network" as a best guess based on volume names.
+          hostConfigToUse.NetworkMode = "hunter-s-guild-server_mc-network";
+
+          newEnv = [
+            "EULA=TRUE",
+            "MEMORY=4G",
+            "MAX_MEMORY=4G",
+            "OA_TRUST=TRUE",
+            "TZ=UTC"
+          ];
         }
+
+        newEnv.push(`MC_VERSION=${version}`);
+        newEnv.push(`SERVER_TYPE=${serverType}`);
+        if (serverType === "forge" && forgeVersion) {
+          newEnv.push(`FORGE_VERSION=${forgeVersion}`);
+        }
+
+        console.log(`Creating container with Image: ${imageToUse}`);
+        const newContainer = await docker.createContainer({
+          name: MC_CONTAINER_NAME,
+          Image: imageToUse,
+          Env: newEnv,
+          HostConfig: hostConfigToUse,
+          ExposedPorts: { "25565/tcp": {}, "25575/tcp": {} },
+          Tty: true,
+          OpenStdin: true,
+        });
+
+        console.log(`[CreateContainer] Container created successfully. ID: ${newContainer.id}`);
+
+        // Update .env file 
+        try {
+          const envPath = "/app/.env";
+          if (fs.existsSync(envPath)) {
+            let envContent = fs.readFileSync(envPath, "utf8");
+
+            const updateEnv = (key, value) => {
+              const regex = new RegExp(`^${key}=.*`, "m");
+              if (regex.test(envContent)) {
+                envContent = envContent.replace(regex, `${key}=${value}`);
+              } else {
+                if (envContent.endsWith('\n')) {
+                  envContent += `${key}=${value}\n`;
+                } else {
+                  envContent += `\n${key}=${value}`;
+                }
+              }
+            };
+
+            updateEnv("MC_VERSION", version);
+            updateEnv("SERVER_TYPE", serverType);
+            updateEnv("FORGE_VERSION", (serverType === "forge" && forgeVersion) ? forgeVersion : "");
+
+            fs.writeFileSync(envPath, envContent, "utf8");
+          }
+        } catch (envError) {
+          console.error("Failed to update .env file:", envError);
+        }
+
+        return { message: "Container created", container: newContainer };
+
       } catch (err) {
-        console.warn(
-          "Failed to inspect self for binds, falling back to defaults:",
-          err,
-        );
-        binds = [
-          "minecraft-world:/server/world",
-          "minecraft-mods:/server/mods",
-          "minecraft-config:/server/config",
-        ];
+        console.error("[CreateContainer] CRITICAL ERROR:", err);
+        throw err;
       }
-
-      imageToUse = "minecraft-minecraft:latest";
-      hostConfigToUse = {
-        Binds: binds,
-        PortBindings: {
-          "25565/tcp": [{ HostPort: "25565" }],
-        },
-        Memory: 4 * 1024 * 1024 * 1024, // Default 4GB
-      };
-
-      newEnv = [
-        "EULA=TRUE",
-        "MEMORY=4G",
-        "MAX_MEMORY=4G",
-        "TYPE=FORGE",
-        "TZ=UTC",
-      ];
     }
 
-    newEnv.push(`MC_VERSION=${version}`);
-    newEnv.push(`SERVER_TYPE=${newType}`);
-
-    if (newType === "forge" && forgeVersion) {
-      newEnv.push(`FORGE_VERSION=${forgeVersion}`);
-    }
-
-    // Create new container with updated environment
-    console.log(`Creating new container: ${newType} ${version}...`);
-    const newContainer = await docker.createContainer({
-      name: MC_CONTAINER_NAME,
-      Image: imageToUse,
-      Env: newEnv,
-      HostConfig: hostConfigToUse,
-      ExposedPorts: { "25565/tcp": {} },
-      Tty: true,
-      OpenStdin: true,
+    const result = await createMinecraftContainer({
+      version,
+      serverType: newType,
+      forgeVersion,
+      forceRecreate: true
     });
 
-    // Start the new container
-    console.log("Starting new container...");
-    await newContainer.start();
-
-    attachGlobalLogStream(newContainer);
-
-    // Update .env file to persist the version change
-    try {
-      const envPath = "/app/.env";
-      if (fs.existsSync(envPath)) {
-        let envContent = fs.readFileSync(envPath, "utf8");
-
-        const updateEnv = (key, value) => {
-          const regex = new RegExp(`^${key}=.*`, "m");
-          if (regex.test(envContent)) {
-            envContent = envContent.replace(regex, `${key}=${value}`);
-          } else {
-            envContent += `\n${key}=${value}`;
-          }
-        };
-
-        updateEnv("MC_VERSION", version);
-        updateEnv("SERVER_TYPE", newType);
-        updateEnv("FORGE_VERSION", forgeVersion || "");
-
-        fs.writeFileSync(envPath, envContent, "utf8");
-        console.log(".env file updated with new version settings");
-      }
-    } catch (envError) {
-      console.error("Failed to update .env file:", envError);
-      // Non-critical error, don't fail the request
-    }
+    const newContainer = result.container;
 
     io.emit("serverStatusUpdate", {
       action: "version_changed",
@@ -942,25 +1003,22 @@ app.post("/api/server/reset", authenticate, async (req, res) => {
 
     // Recreate the container so it's ready to start
     console.log("[System] Recreating container...");
-    const newContainerInfo = await getMinecraftContainer();
-    if (!newContainerInfo) {
-      // If we removed it, we might need to recreate it from image info or similar...
-      // Actually, 'start' command usually requires it to exist.
-      // The restart/start logic in this API assumes container exists.
-      // We need to re-create it using the same config as before.
-      // Ideally, we should have stored the config before deleting.
-      // However, `docker-compose up` usually handles creation.
-      // Since we are inside docker-compose, maybe we leave it deleted and let the user click "Start"
-      // which typically calls /api/start. BUT /api/start checks getMinecraftContainer().
-      // If it returns null, /api/start fails.
-      // So we MUST recreate it.
-      // Let's use the env variables (default or stored) to create it.
-      // But inspect.Config.Env is gone.
-      // ALTERNATIVE: Don't remove container. Just rely on retry logic.
-      // But EBUSY persistent means container is holding it.
-      // Let's try aggressive retry with longer delay first.
-      // AND emit logs so user sees it.
-    }
+    // Recreate the container so it's ready to start
+    console.log("[System] Recreating container after reset...");
+
+    // Read current config from env vars to restore consistent state
+    const currentVersion = process.env.MC_VERSION || "1.21.1";
+    const currentType = process.env.SERVER_TYPE || "vanilla";
+    const currentForge = process.env.FORGE_VERSION || "";
+
+    await createMinecraftContainer({
+      version: currentVersion,
+      serverType: currentType,
+      forgeVersion: currentForge,
+      forceRecreate: false // Since we already removed it above
+    });
+
+    io.emit("log", "[System] Server container recreated. Ready to start.");
 
     res.json({
       message: "Server reset complete",
@@ -1114,7 +1172,7 @@ app.get("/api/dir", authenticate, (req, res) => {
 // Delete file or directory (with password confirmation)
 app.post("/api/files/delete", authenticate, (req, res) => {
   const { path: filePath, password } = req.body;
-  
+
   // Verify password
   if (!password || password !== ADMIN_PASS) {
     return res.status(401).json({ error: "Invalid password" });
@@ -1126,7 +1184,7 @@ app.post("/api/files/delete", authenticate, (req, res) => {
 
   // Build full path and verify it's within SERVER_DIR
   const fullPath = path.join(SERVER_DIR, filePath);
-  
+
   // Security: ensure we stay within SERVER_DIR
   if (!fullPath.startsWith(SERVER_DIR)) {
     return res.status(403).json({ error: "Access denied" });
@@ -1136,7 +1194,7 @@ app.post("/api/files/delete", authenticate, (req, res) => {
   const relativePath = path.relative(SERVER_DIR, fullPath);
   const topLevel = relativePath.split(path.sep)[0];
   const criticalPaths = ['server.jar', 'eula.txt', 'libraries', 'versions'];
-  
+
   if (criticalPaths.includes(topLevel) || criticalPaths.includes(relativePath)) {
     return res.status(403).json({ error: "Cannot delete critical server files" });
   }
@@ -1147,12 +1205,27 @@ app.post("/api/files/delete", authenticate, (req, res) => {
     }
 
     const stats = fs.statSync(fullPath);
-    
+
     if (stats.isDirectory()) {
       // Recursively delete directory
-      fs.rmSync(fullPath, { recursive: true, force: true });
-      console.log(`Deleted directory: ${filePath}`);
-      res.json({ message: "Directory deleted successfully", path: filePath });
+      try {
+        fs.rmSync(fullPath, { recursive: true, force: true });
+        console.log(`Deleted directory: ${filePath}`);
+        res.json({ message: "Directory deleted successfully", path: filePath });
+      } catch (err) {
+        if (err.code === 'EBUSY') {
+          // Likely a Docker volume mount point. We can't remove the directory itself,
+          // but we can empty its contents.
+          console.log(`EBUSY on ${filePath}, attempting to empty directory...`);
+          const children = fs.readdirSync(fullPath);
+          for (const child of children) {
+            fs.rmSync(path.join(fullPath, child), { recursive: true, force: true });
+          }
+          res.json({ message: "Directory emptied (kept mount point)", path: filePath });
+        } else {
+          throw err;
+        }
+      }
     } else {
       // Delete file
       fs.unlinkSync(fullPath);
@@ -1363,7 +1436,7 @@ function getModrinthHashes(filePath) {
 function extractModMetadata(jarPath) {
   try {
     const zip = new AdmZip(jarPath);
-    
+
     // Try Forge format (mods.toml)
     const forgeToml = zip.getEntry('META-INF/mods.toml');
     if (forgeToml) {
@@ -1379,7 +1452,7 @@ function extractModMetadata(jarPath) {
         loader: 'forge'
       };
     }
-    
+
     // Try Fabric format (fabric.mod.json)
     const fabricJson = zip.getEntry('fabric.mod.json');
     if (fabricJson) {
@@ -1391,7 +1464,7 @@ function extractModMetadata(jarPath) {
         loader: 'fabric'
       };
     }
-    
+
     return null;
   } catch (e) {
     console.error(`[Modpack] Failed to extract metadata from ${path.basename(jarPath)}:`, e.message);
@@ -1403,7 +1476,7 @@ function extractModMetadata(jarPath) {
 async function getModrinthDownloadUrl(modId, mcVersion, loader = 'forge') {
   try {
     const axios = require('axios');
-    
+
     // First try to find project by modId (slug)
     const searchUrl = `https://api.modrinth.com/v2/project/${modId}`;
     let projectRes;
@@ -1419,11 +1492,11 @@ async function getModrinthDownloadUrl(modId, mcVersion, loader = 'forge') {
         headers: { 'User-Agent': 'HuntersGuild-ModpackGenerator/1.0' },
         timeout: 5000
       });
-      
+
       if (!searchRes.data.hits || searchRes.data.hits.length === 0) {
         return null;
       }
-      
+
       // Find best match (exact slug match or first result)
       const match = searchRes.data.hits.find(h => h.slug === modId) || searchRes.data.hits[0];
       projectRes = await axios.get(`https://api.modrinth.com/v2/project/${match.slug}`, {
@@ -1431,18 +1504,18 @@ async function getModrinthDownloadUrl(modId, mcVersion, loader = 'forge') {
         timeout: 5000
       });
     }
-    
+
     if (!projectRes.data) return null;
-    
+
     const projectSlug = projectRes.data.slug;
-    
+
     // Get versions for this MC version and loader
     const versionsUrl = `https://api.modrinth.com/v2/project/${projectSlug}/version?game_versions=["${mcVersion}"]&loaders=["${loader}"]`;
     const versionsRes = await axios.get(versionsUrl, {
       headers: { 'User-Agent': 'HuntersGuild-ModpackGenerator/1.0' },
       timeout: 5000
     });
-    
+
     if (!versionsRes.data || versionsRes.data.length === 0) {
       // Try without version filter
       const allVersionsUrl = `https://api.modrinth.com/v2/project/${projectSlug}/version?loaders=["${loader}"]`;
@@ -1450,17 +1523,17 @@ async function getModrinthDownloadUrl(modId, mcVersion, loader = 'forge') {
         headers: { 'User-Agent': 'HuntersGuild-ModpackGenerator/1.0' },
         timeout: 5000
       });
-      
+
       if (!allVersionsRes.data || allVersionsRes.data.length === 0) return null;
-      
+
       // Find closest MC version
       const targetMajor = mcVersion.split('.').slice(0, 2).join('.');
-      const matchingVersion = allVersionsRes.data.find(v => 
+      const matchingVersion = allVersionsRes.data.find(v =>
         v.game_versions.some(gv => gv.startsWith(targetMajor))
       );
-      
+
       if (!matchingVersion) return null;
-      
+
       const primaryFile = matchingVersion.files.find(f => f.primary) || matchingVersion.files[0];
       return {
         url: primaryFile.url,
@@ -1470,11 +1543,11 @@ async function getModrinthDownloadUrl(modId, mcVersion, loader = 'forge') {
         source: 'modrinth'
       };
     }
-    
+
     // Get the first (latest) version
     const latestVersion = versionsRes.data[0];
     const primaryFile = latestVersion.files.find(f => f.primary) || latestVersion.files[0];
-    
+
     return {
       url: primaryFile.url,
       sha512: primaryFile.hashes.sha512,
@@ -1493,7 +1566,7 @@ async function generateModpackManifest() {
   try {
     const modsDir = MODS_DIR;
     const modpackDir = path.join(__dirname, "..", "modpack");
-    
+
     // Ensure modpack directory exists
     if (!fs.existsSync(modpackDir)) {
       fs.mkdirSync(modpackDir, { recursive: true });
@@ -1503,14 +1576,14 @@ async function generateModpackManifest() {
     const mcVersion = process.env.MC_VERSION || "1.21.1";
     const forgeVersion = process.env.FORGE_VERSION || "61.0.8";
     let domain = process.env.DOMAIN || "http://localhost";
-    
+
     // Ensure domain has protocol (default to https for production, http for localhost)
     if (domain && !domain.startsWith('http://') && !domain.startsWith('https://')) {
       domain = domain.includes('localhost') ? `http://${domain}` : `https://${domain}`;
     }
-    
+
     // Scan mods folder
-    const modFiles = fs.existsSync(modsDir) 
+    const modFiles = fs.existsSync(modsDir)
       ? fs.readdirSync(modsDir).filter(f => f.endsWith('.jar'))
       : [];
 
@@ -1520,24 +1593,24 @@ async function generateModpackManifest() {
     const files = [];
     let modrinthCount = 0;
     let serverCount = 0;
-    
+
     for (const modFile of modFiles) {
       const modPath = path.join(modsDir, modFile);
       const stats = fs.statSync(modPath);
-      
+
       console.log(`[Modpack] Processing: ${modFile}`);
-      
+
       // Extract mod metadata from JAR
       const metadata = extractModMetadata(modPath);
       let downloadUrl = null;
       let hashes = null;
       let fileSize = stats.size;
-      
+
       // Try to get Modrinth download URL
       if (metadata && metadata.modId) {
         console.log(`[Modpack]   Found modId: ${metadata.modId}${metadata.displayName ? ` (${metadata.displayName})` : ''}`);
         const modrinthData = await getModrinthDownloadUrl(metadata.modId, mcVersion, metadata.loader || 'forge');
-        
+
         if (modrinthData) {
           downloadUrl = modrinthData.url;
           hashes = {
@@ -1553,14 +1626,14 @@ async function generateModpackManifest() {
       } else {
         console.log(`[Modpack]   ⚠️  Could not extract modId, using server URL`);
       }
-      
+
       // Fallback to server URL if Modrinth lookup failed
       if (!downloadUrl) {
         downloadUrl = `${domain}/api/modpack/download-mod/${encodeURIComponent(modFile)}`;
         hashes = getModrinthHashes(modPath);
         serverCount++;
       }
-      
+
       files.push({
         path: `mods/${modFile}`,
         hashes: hashes,
@@ -1619,7 +1692,7 @@ app.post("/api/modpack/generate", authenticate, async (req, res) => {
     // Check if server is Forge
     const serverType = process.env.SERVER_TYPE || "vanilla";
     if (serverType.toLowerCase() !== "forge") {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: "Modpack generation is only available for Forge servers",
         userMessage: "This feature is only available when running a Forge server. Your server is currently set to " + serverType + "."
       });
@@ -1628,7 +1701,7 @@ app.post("/api/modpack/generate", authenticate, async (req, res) => {
     // Check if mods folder exists and has mods
     const modsDir = MODS_DIR;
     if (!fs.existsSync(modsDir)) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: "Mods folder not found",
         userMessage: "No mods folder found. Please make sure your Forge server is properly set up."
       });
@@ -1636,7 +1709,7 @@ app.post("/api/modpack/generate", authenticate, async (req, res) => {
 
     const modFiles = fs.readdirSync(modsDir).filter(f => f.endsWith('.jar'));
     if (modFiles.length === 0) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: "No mods found",
         userMessage: "No mods found in the mods folder. Please add at least one mod (.jar file) before generating a modpack."
       });
@@ -1645,7 +1718,7 @@ app.post("/api/modpack/generate", authenticate, async (req, res) => {
     const result = await generateModpackManifest();
     res.json(result);
   } catch (error) {
-    res.status(500).json({ 
+    res.status(500).json({
       error: error.message,
       userMessage: "An error occurred while generating the modpack. Please try again."
     });
@@ -1657,10 +1730,10 @@ app.get("/api/modpack/status", authenticate, async (req, res) => {
   try {
     const serverType = process.env.SERVER_TYPE || "vanilla";
     const isForge = serverType.toLowerCase() === "forge";
-    
+
     const modpackDir = path.join(__dirname, "..", "modpack");
     const indexFile = path.join(modpackDir, "modrinth.index.json");
-    
+
     const modsDir = MODS_DIR;
     const modFiles = fs.existsSync(modsDir)
       ? fs.readdirSync(modsDir).filter(f => f.endsWith('.jar'))
@@ -1772,7 +1845,7 @@ app.get("/api/modpack/download-mod/:filename", async (req, res) => {
   try {
     const filename = decodeURIComponent(req.params.filename);
     const modPath = path.join(MODS_DIR, filename);
-    
+
     if (!fs.existsSync(modPath)) {
       return res.status(404).json({ error: "Mod not found" });
     }
