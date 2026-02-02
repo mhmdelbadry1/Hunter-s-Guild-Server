@@ -1,4 +1,4 @@
-# Caddy reverse proxy configuration
+# Caddy reverse proxy configuration  
 # Handles SSL automatically via Let's Encrypt
 
 {$DOMAIN} {

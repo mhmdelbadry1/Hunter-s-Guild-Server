@@ -892,13 +892,10 @@ app.post("/api/server/reset", authenticate, async (req, res) => {
         await container.stop({ t: 10 });
       }
 
-      // Remove container to release file locks on Windows
-      console.log("[System] Removing container to release file locks...");
-      io.emit("log", "[System] Analyzing file locks...");
-      await container.remove();
-
-      // Wait for file locks to actually release (Windows Docker Desktop quirk)
-      await new Promise((r) => setTimeout(r, 2000));
+      // Wait for file locks to release (don't remove container - we need it to start again)
+      console.log("[System] Waiting for file locks to release...");
+      io.emit("log", "[System] Waiting for file system to sync...");
+      await new Promise((r) => setTimeout(r, 3000));
     }
 
     const deleted = [];
@@ -943,33 +940,12 @@ app.post("/api/server/reset", authenticate, async (req, res) => {
 
     io.emit("serverStatusUpdate", { action: "reset" });
     io.emit("log", "[System] Server reset complete. World data deleted.");
-
-    // Recreate the container so it's ready to start
-    console.log("[System] Recreating container...");
-    const newContainerInfo = await getMinecraftContainer();
-    if (!newContainerInfo) {
-      // If we removed it, we might need to recreate it from image info or similar...
-      // Actually, 'start' command usually requires it to exist.
-      // The restart/start logic in this API assumes container exists.
-      // We need to re-create it using the same config as before.
-      // Ideally, we should have stored the config before deleting.
-      // However, `docker-compose up` usually handles creation.
-      // Since we are inside docker-compose, maybe we leave it deleted and let the user click "Start"
-      // which typically calls /api/start. BUT /api/start checks getMinecraftContainer().
-      // If it returns null, /api/start fails.
-      // So we MUST recreate it.
-      // Let's use the env variables (default or stored) to create it.
-      // But inspect.Config.Env is gone.
-      // ALTERNATIVE: Don't remove container. Just rely on retry logic.
-      // But EBUSY persistent means container is holding it.
-      // Let's try aggressive retry with longer delay first.
-      // AND emit logs so user sees it.
-    }
+    console.log("[System] Reset complete. Container ready to start.");
 
     res.json({
       message: "Server reset complete",
       deleted,
-      note: "Start the server to generate a new world",
+      note: "Click Start to launch the server with fresh data",
     });
   } catch (error) {
     console.error("Reset error:", error);

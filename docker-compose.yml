@@ -86,7 +86,9 @@ services:
 
   # ===== Reverse Proxy (Caddy - Auto SSL) =====
   caddy:
-    image: caddy:2-alpine
+    build:
+      context: ./caddy
+      dockerfile: Dockerfile
     container_name: mc-caddy
     restart: unless-stopped
     ports:
@@ -95,6 +97,7 @@ services:
       - "443:443"
     environment:
       - DOMAIN=${DOMAIN:-localhost}
+      - DUCKDNS_TOKEN=${DUCKDNS_TOKEN}
     volumes:
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data
