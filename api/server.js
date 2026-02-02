@@ -11,6 +11,7 @@ const session = require("express-session");
 const { Server } = require("socket.io");
 const Docker = require("dockerode");
 const multer = require("multer");
+const archiver = require("archiver");
 
 const app = express();
 const server = http.createServer(app);
@@ -1110,6 +1111,60 @@ app.get("/api/dir", authenticate, (req, res) => {
   }
 });
 
+// Delete file or directory (with password confirmation)
+app.post("/api/files/delete", authenticate, (req, res) => {
+  const { path: filePath, password } = req.body;
+  
+  // Verify password
+  if (!password || password !== ADMIN_PASS) {
+    return res.status(401).json({ error: "Invalid password" });
+  }
+
+  if (!filePath) {
+    return res.status(400).json({ error: "Path is required" });
+  }
+
+  // Build full path and verify it's within SERVER_DIR
+  const fullPath = path.join(SERVER_DIR, filePath);
+  
+  // Security: ensure we stay within SERVER_DIR
+  if (!fullPath.startsWith(SERVER_DIR)) {
+    return res.status(403).json({ error: "Access denied" });
+  }
+
+  // Prevent deleting root level critical files/folders
+  const relativePath = path.relative(SERVER_DIR, fullPath);
+  const topLevel = relativePath.split(path.sep)[0];
+  const criticalPaths = ['server.jar', 'eula.txt', 'libraries', 'versions'];
+  
+  if (criticalPaths.includes(topLevel) || criticalPaths.includes(relativePath)) {
+    return res.status(403).json({ error: "Cannot delete critical server files" });
+  }
+
+  try {
+    if (!fs.existsSync(fullPath)) {
+      return res.status(404).json({ error: "File or directory not found" });
+    }
+
+    const stats = fs.statSync(fullPath);
+    
+    if (stats.isDirectory()) {
+      // Recursively delete directory
+      fs.rmSync(fullPath, { recursive: true, force: true });
+      console.log(`Deleted directory: ${filePath}`);
+      res.json({ message: "Directory deleted successfully", path: filePath });
+    } else {
+      // Delete file
+      fs.unlinkSync(fullPath);
+      console.log(`Deleted file: ${filePath}`);
+      res.json({ message: "File deleted successfully", path: filePath });
+    }
+  } catch (error) {
+    console.error(`Error deleting ${filePath}:`, error);
+    res.status(500).json({ error: `Failed to delete: ${error.message}` });
+  }
+});
+
 // ===== BACKUP =====
 
 app.post("/api/backup", authenticate, async (req, res) => {
@@ -1287,6 +1342,7 @@ function ensureQueryEnabled() {
 // ===== MODPACK MANAGEMENT =====
 
 const crypto = require("crypto");
+const AdmZip = require("adm-zip");
 
 // Generate hash for a file
 function getFileHash(filePath) {
@@ -1294,7 +1350,145 @@ function getFileHash(filePath) {
   return crypto.createHash("sha256").update(content).digest("hex");
 }
 
-// Scan mods folder and generate packwiz metadata
+// Generate SHA1 and SHA512 hashes for Modrinth format
+function getModrinthHashes(filePath) {
+  const content = fs.readFileSync(filePath);
+  return {
+    sha1: crypto.createHash("sha1").update(content).digest("hex"),
+    sha512: crypto.createHash("sha512").update(content).digest("hex")
+  };
+}
+
+// Extract mod metadata from JAR file
+function extractModMetadata(jarPath) {
+  try {
+    const zip = new AdmZip(jarPath);
+    
+    // Try Forge format (mods.toml)
+    const forgeToml = zip.getEntry('META-INF/mods.toml');
+    if (forgeToml) {
+      const content = forgeToml.getData().toString('utf8');
+      // Basic TOML parsing for modId
+      const modIdMatch = content.match(/modId\s*=\s*["']([^"']+)["']/);
+      const versionMatch = content.match(/version\s*=\s*["']([^"']+)["']/);
+      const displayNameMatch = content.match(/displayName\s*=\s*["']([^"']+)["']/);
+      return {
+        modId: modIdMatch ? modIdMatch[1] : null,
+        version: versionMatch ? versionMatch[1] : null,
+        displayName: displayNameMatch ? displayNameMatch[1] : null,
+        loader: 'forge'
+      };
+    }
+    
+    // Try Fabric format (fabric.mod.json)
+    const fabricJson = zip.getEntry('fabric.mod.json');
+    if (fabricJson) {
+      const json = JSON.parse(fabricJson.getData().toString('utf8'));
+      return {
+        modId: json.id,
+        version: json.version,
+        displayName: json.name,
+        loader: 'fabric'
+      };
+    }
+    
+    return null;
+  } catch (e) {
+    console.error(`[Modpack] Failed to extract metadata from ${path.basename(jarPath)}:`, e.message);
+    return null;
+  }
+}
+
+// Query Modrinth API for mod download URL
+async function getModrinthDownloadUrl(modId, mcVersion, loader = 'forge') {
+  try {
+    const axios = require('axios');
+    
+    // First try to find project by modId (slug)
+    const searchUrl = `https://api.modrinth.com/v2/project/${modId}`;
+    let projectRes;
+    try {
+      projectRes = await axios.get(searchUrl, {
+        headers: { 'User-Agent': 'HuntersGuild-ModpackGenerator/1.0' },
+        timeout: 5000
+      });
+    } catch (e) {
+      // Project not found by slug, try search
+      const searchQuery = `https://api.modrinth.com/v2/search?query=${encodeURIComponent(modId)}&facets=[["project_type:mod"]]&limit=5`;
+      const searchRes = await axios.get(searchQuery, {
+        headers: { 'User-Agent': 'HuntersGuild-ModpackGenerator/1.0' },
+        timeout: 5000
+      });
+      
+      if (!searchRes.data.hits || searchRes.data.hits.length === 0) {
+        return null;
+      }
+      
+      // Find best match (exact slug match or first result)
+      const match = searchRes.data.hits.find(h => h.slug === modId) || searchRes.data.hits[0];
+      projectRes = await axios.get(`https://api.modrinth.com/v2/project/${match.slug}`, {
+        headers: { 'User-Agent': 'HuntersGuild-ModpackGenerator/1.0' },
+        timeout: 5000
+      });
+    }
+    
+    if (!projectRes.data) return null;
+    
+    const projectSlug = projectRes.data.slug;
+    
+    // Get versions for this MC version and loader
+    const versionsUrl = `https://api.modrinth.com/v2/project/${projectSlug}/version?game_versions=["${mcVersion}"]&loaders=["${loader}"]`;
+    const versionsRes = await axios.get(versionsUrl, {
+      headers: { 'User-Agent': 'HuntersGuild-ModpackGenerator/1.0' },
+      timeout: 5000
+    });
+    
+    if (!versionsRes.data || versionsRes.data.length === 0) {
+      // Try without version filter
+      const allVersionsUrl = `https://api.modrinth.com/v2/project/${projectSlug}/version?loaders=["${loader}"]`;
+      const allVersionsRes = await axios.get(allVersionsUrl, {
+        headers: { 'User-Agent': 'HuntersGuild-ModpackGenerator/1.0' },
+        timeout: 5000
+      });
+      
+      if (!allVersionsRes.data || allVersionsRes.data.length === 0) return null;
+      
+      // Find closest MC version
+      const targetMajor = mcVersion.split('.').slice(0, 2).join('.');
+      const matchingVersion = allVersionsRes.data.find(v => 
+        v.game_versions.some(gv => gv.startsWith(targetMajor))
+      );
+      
+      if (!matchingVersion) return null;
+      
+      const primaryFile = matchingVersion.files.find(f => f.primary) || matchingVersion.files[0];
+      return {
+        url: primaryFile.url,
+        sha512: primaryFile.hashes.sha512,
+        sha1: primaryFile.hashes.sha1,
+        size: primaryFile.size,
+        source: 'modrinth'
+      };
+    }
+    
+    // Get the first (latest) version
+    const latestVersion = versionsRes.data[0];
+    const primaryFile = latestVersion.files.find(f => f.primary) || latestVersion.files[0];
+    
+    return {
+      url: primaryFile.url,
+      sha512: primaryFile.hashes.sha512,
+      sha1: primaryFile.hashes.sha1,
+      size: primaryFile.size,
+      source: 'modrinth'
+    };
+  } catch (e) {
+    console.log(`[Modpack] Could not fetch Modrinth URL for ${modId}: ${e.message}`);
+    return null;
+  }
+}
+
+// Scan mods folder and generate Modrinth modpack manifest
 async function generateModpackManifest() {
   try {
     const modsDir = MODS_DIR;
@@ -1308,77 +1502,102 @@ async function generateModpackManifest() {
     // Read current MC version from env
     const mcVersion = process.env.MC_VERSION || "1.21.1";
     const forgeVersion = process.env.FORGE_VERSION || "61.0.8";
+    const domain = process.env.DOMAIN || "http://localhost";
     
     // Scan mods folder
     const modFiles = fs.existsSync(modsDir) 
       ? fs.readdirSync(modsDir).filter(f => f.endsWith('.jar'))
       : [];
 
-    // Generate pack.toml
-    const packToml = `name = "Hunter's Guild Modpack"
-author = "Hunter's Guild Server"
-version = "1.0.0"
-pack-format = "packwiz:1.1.0"
+    console.log(`[Modpack] Processing ${modFiles.length} mods...`);
 
-[index]
-file = "index.toml"
-hash-format = "sha256"
-hash = ""
-
-[versions]
-minecraft = "${mcVersion}"
-forge = "${forgeVersion}"
-`;
-
-    // Generate index.toml with mod list
-    let indexToml = `hash-format = "sha256"
-\n[[files]]
-file = "mods/README.txt"
-hash = ""
-\n`;
-
-    // Add each mod to index
+    // Build files array for Modrinth format
+    const files = [];
+    let modrinthCount = 0;
+    let serverCount = 0;
+    
     for (const modFile of modFiles) {
       const modPath = path.join(modsDir, modFile);
-      const hash = getFileHash(modPath);
-      const modMeta = `[[files]]
-file = "mods/${modFile}"
-hash = "${hash}"
-metafile = true
-
-`;
-      indexToml += modMeta;
-
-      // Create individual mod metadata file
-      const modMetaDir = path.join(modpackDir, "mods");
-      if (!fs.existsSync(modMetaDir)) {
-        fs.mkdirSync(modMetaDir, { recursive: true });
+      const stats = fs.statSync(modPath);
+      
+      console.log(`[Modpack] Processing: ${modFile}`);
+      
+      // Extract mod metadata from JAR
+      const metadata = extractModMetadata(modPath);
+      let downloadUrl = null;
+      let hashes = null;
+      let fileSize = stats.size;
+      
+      // Try to get Modrinth download URL
+      if (metadata && metadata.modId) {
+        console.log(`[Modpack]   Found modId: ${metadata.modId}${metadata.displayName ? ` (${metadata.displayName})` : ''}`);
+        const modrinthData = await getModrinthDownloadUrl(metadata.modId, mcVersion, metadata.loader || 'forge');
+        
+        if (modrinthData) {
+          downloadUrl = modrinthData.url;
+          hashes = {
+            sha1: modrinthData.sha1,
+            sha512: modrinthData.sha512
+          };
+          fileSize = modrinthData.size;
+          modrinthCount++;
+          console.log(`[Modpack]   ✅ Using Modrinth CDN`);
+        } else {
+          console.log(`[Modpack]   ⚠️  Not found on Modrinth, using server URL`);
+        }
+      } else {
+        console.log(`[Modpack]   ⚠️  Could not extract modId, using server URL`);
       }
-
-      const modMetaContent = `name = "${modFile.replace('.jar', '')}"
-filename = "${modFile}"
-side = "both"
-
-[download]
-url = "${process.env.DOMAIN || 'http://localhost'}/api/modpack/download-mod/${encodeURIComponent(modFile)}"
-hash-format = "sha256"
-hash = "${hash}"
-`;
-
-      fs.writeFileSync(
-        path.join(modMetaDir, `${modFile}.pw.toml`),
-        modMetaContent,
-        "utf8"
-      );
+      
+      // Fallback to server URL if Modrinth lookup failed
+      if (!downloadUrl) {
+        downloadUrl = `${domain}/api/modpack/download-mod/${encodeURIComponent(modFile)}`;
+        hashes = getModrinthHashes(modPath);
+        serverCount++;
+      }
+      
+      files.push({
+        path: `mods/${modFile}`,
+        hashes: hashes,
+        env: {
+          client: "required",
+          server: "required"
+        },
+        downloads: [downloadUrl],
+        fileSize: fileSize
+      });
     }
 
-    // Write pack.toml and index.toml
-    fs.writeFileSync(path.join(modpackDir, "pack.toml"), packToml, "utf8");
-    fs.writeFileSync(path.join(modpackDir, "index.toml"), indexToml, "utf8");
+    console.log(`[Modpack] ✅ Summary: ${modrinthCount} from Modrinth CDN, ${serverCount} from server`);
+
+    // Generate modrinth.index.json
+    const modrinthIndex = {
+      formatVersion: 1,
+      game: "minecraft",
+      versionId: `hunters-guild-${Date.now()}`,
+      name: "Hunter's Guild Modpack",
+      summary: `Hunter's Guild Server modpack with ${modFiles.length} mods`,
+      files: files,
+      dependencies: {
+        minecraft: mcVersion,
+        forge: forgeVersion
+      }
+    };
+
+    // Write modrinth.index.json
+    fs.writeFileSync(
+      path.join(modpackDir, "modrinth.index.json"),
+      JSON.stringify(modrinthIndex, null, 2),
+      "utf8"
+    );
+
+    console.log(`[Modpack] ✅ Generated modpack manifest`);
 
     return {
       success: true,
       modCount: modFiles.length,
+      modrinthCount,
+      serverCount,
       mcVersion,
       forgeVersion,
       packUrl: `${process.env.DOMAIN || 'http://localhost'}/modpack/pack.toml`
@@ -1435,14 +1654,14 @@ app.get("/api/modpack/status", authenticate, async (req, res) => {
     const isForge = serverType.toLowerCase() === "forge";
     
     const modpackDir = path.join(__dirname, "..", "modpack");
-    const packFile = path.join(modpackDir, "pack.toml");
+    const indexFile = path.join(modpackDir, "modrinth.index.json");
     
     const modsDir = MODS_DIR;
     const modFiles = fs.existsSync(modsDir)
       ? fs.readdirSync(modsDir).filter(f => f.endsWith('.jar'))
       : [];
 
-    if (!fs.existsSync(packFile)) {
+    if (!fs.existsSync(indexFile)) {
       return res.json({
         exists: false,
         modCount: modFiles.length,
@@ -1453,13 +1672,12 @@ app.get("/api/modpack/status", authenticate, async (req, res) => {
       });
     }
 
-    const stats = fs.statSync(packFile);
+    const stats = fs.statSync(indexFile);
 
     res.json({
       exists: true,
       modCount: modFiles.length,
       lastGenerated: stats.mtime,
-      packUrl: `${process.env.DOMAIN || 'http://localhost'}/modpack/pack.toml`,
       isForge,
       serverType,
       canGenerate: isForge && modFiles.length > 0
@@ -1475,6 +1693,8 @@ app.get("/modpack/pack.toml", (req, res) => {
   if (!fs.existsSync(packFile)) {
     return res.status(404).send("Modpack not generated yet");
   }
+  res.setHeader('Content-Type', 'text/plain');
+  res.setHeader('Content-Disposition', 'attachment; filename="pack.toml"');
   res.sendFile(packFile);
 });
 
@@ -1484,6 +1704,8 @@ app.get("/modpack/index.toml", (req, res) => {
   if (!fs.existsSync(indexFile)) {
     return res.status(404).send("Modpack not generated yet");
   }
+  res.setHeader('Content-Type', 'text/plain');
+  res.setHeader('Content-Disposition', 'attachment; filename="index.toml"');
   res.sendFile(indexFile);
 });
 
@@ -1494,7 +1716,50 @@ app.get("/modpack/mods/:filename", (req, res) => {
   if (!fs.existsSync(modFile)) {
     return res.status(404).send("Mod metadata not found");
   }
+  res.setHeader('Content-Type', 'text/plain');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
   res.sendFile(modFile);
+});
+
+// Download modpack as .mrpack ZIP file (for Prism Launcher import)
+app.get("/modpack/download", async (req, res) => {
+  try {
+    const modpackDir = path.join(__dirname, "..", "modpack");
+    const indexFile = path.join(modpackDir, "modrinth.index.json");
+
+    if (!fs.existsSync(indexFile)) {
+      return res.status(404).send("Modpack not generated yet. Please generate the modpack first.");
+    }
+
+    // Read modrinth.index.json to get modpack name for filename
+    const indexContent = JSON.parse(fs.readFileSync(indexFile, "utf8"));
+    const packName = (indexContent.name || "modpack").replace(/[^a-zA-Z0-9-_]/g, "_");
+
+    // Set headers for ZIP download
+    res.setHeader("Content-Type", "application/x-modrinth-modpack+zip");
+    res.setHeader("Content-Disposition", `attachment; filename="${packName}.mrpack"`);
+
+    // Create ZIP archive
+    const archive = archiver("zip", { zlib: { level: 9 } });
+
+    archive.on("error", (err) => {
+      throw err;
+    });
+
+    // Pipe archive to response
+    archive.pipe(res);
+
+    // Add modrinth.index.json to root of ZIP (REQUIRED)
+    archive.file(indexFile, { name: "modrinth.index.json" });
+
+    // Finalize the archive
+    await archive.finalize();
+  } catch (error) {
+    console.error("Error creating modpack ZIP:", error);
+    if (!res.headersSent) {
+      res.status(500).json({ error: error.message });
+    }
+  }
 });
 
 // Download individual mod (for players)

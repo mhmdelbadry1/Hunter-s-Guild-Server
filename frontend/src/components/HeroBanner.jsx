@@ -88,7 +88,7 @@ const HeroBanner = () => {
                 }
 
                 vec2 hash2(vec2 p) {
-                    vec2 o = texture2D( u_noise, (p+0.5)/256.0, -100.0 ).xy;
+                    vec2 o = texture2D( u_noise, (p+0.5)/256.0, -15.0 ).xy;
                     return o;
                 }
 

@@ -2,6 +2,11 @@
 # Handles SSL automatically via Let's Encrypt
 
 http://:80 {
+    # Modpack distribution (public access)
+    handle /modpack/* {
+        reverse_proxy api:3001
+    }
+    
     # API routes
     handle /api/* {
         reverse_proxy api:3001

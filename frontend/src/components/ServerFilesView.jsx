@@ -5,6 +5,30 @@ import blockImg from "../assets/minecraft-blocks.png"; // Image for the random b
 import { apiUrl } from "../config/api";
 
 // SVG Icons
+const DeleteIcon = () => (
+  <svg
+    width="14"
+    height="14"
+    viewBox="0 0 16 16"
+    fill="currentColor"
+    style={{ verticalAlign: "middle" }}
+  >
+    <path d="M8 8.707l3.646 3.647.708-.707L8.707 8l3.647-3.646-.707-.708L8 7.293 4.354 3.646l-.707.708L7.293 8l-3.646 3.646.707.708L8 8.707z" />
+  </svg>
+);
+
+const WarningIcon = () => (
+  <svg
+    width="48"
+    height="48"
+    viewBox="0 0 16 16"
+    fill="#ef4444"
+    style={{ display: "block", margin: "0 auto 16px" }}
+  >
+    <path d="M7.56 1h.88l6.54 12.26-.44.74H1.44l-.42-.74L7.56 1zm.44 1.7L2.38 13H13.6L8 2.7zM8.5 11.5v-1h-1v1h1zm-.06-2l.2-4h-1.3l.2 4h.9z" />
+  </svg>
+);
+
 const FolderIcon = ({ open }) => (
   <svg
     width="16"
@@ -34,38 +58,171 @@ const FileIcon = () => (
 );
 
 // ----------------------------------
+// Delete Confirmation Modal
+// ----------------------------------
+function DeleteConfirmModal({ isOpen, filePath, fileName, isDirectory, onConfirm, onCancel }) {
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  if (!isOpen) return null;
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    try {
+      const token = localStorage.getItem("jwtToken");
+      await axios.post(
+        apiUrl("/files/delete"),
+        { path: filePath, password },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setPassword("");
+      onConfirm();
+    } catch (err) {
+      setError(err.response?.data?.error || "Failed to delete");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="delete-modal-overlay" onClick={onCancel}>
+      <div className="delete-modal" onClick={(e) => e.stopPropagation()}>
+        <button className="delete-modal-close" onClick={onCancel}>
+          <DeleteIcon />
+        </button>
+        
+        <WarningIcon />
+        
+        <h2>Confirm Delete</h2>
+        <p className="delete-modal-file">
+          {isDirectory ? "📁" : "📄"} <strong>{fileName}</strong>
+        </p>
+        <p className="delete-modal-warning">
+          {isDirectory 
+            ? "This will permanently delete this folder and ALL its contents."
+            : "This will permanently delete this file."}
+        </p>
+        
+        <form onSubmit={handleSubmit}>
+          <label className="delete-modal-label">Enter password to confirm:</label>
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="delete-modal-input"
+            placeholder="Password"
+            autoFocus
+          />
+          
+          {error && <p className="delete-modal-error">{error}</p>}
+          
+          <div className="delete-modal-buttons">
+            <button 
+              type="button" 
+              onClick={onCancel} 
+              className="delete-modal-cancel"
+              disabled={loading}
+            >
+              Cancel
+            </button>
+            <button 
+              type="submit" 
+              className="delete-modal-confirm"
+              disabled={loading || !password}
+            >
+              {loading ? "Deleting..." : "Delete"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ----------------------------------
 // Helper Component for Rendering Files & Directories
 // ----------------------------------
-function FileNode({ node }) {
+function FileNode({ node, parentPath = "", onDelete }) {
   const [expanded, setExpanded] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const toggleExpanded = () => setExpanded(!expanded);
+  
+  const fullPath = parentPath ? `${parentPath}/${node.name}` : node.name;
+
+  const handleDeleteClick = (e) => {
+    e.stopPropagation();
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteConfirm = () => {
+    setShowDeleteModal(false);
+    if (onDelete) onDelete();
+  };
 
   if (node.type === "directory") {
     return (
       <li>
-        <span
-          onClick={toggleExpanded}
-          className="directory-name"
-          style={{ cursor: "pointer", userSelect: "none" }}
-        >
-          <FolderIcon open={expanded} /> {node.name}
-        </span>
+        <div className="file-node-row">
+          <span
+            onClick={toggleExpanded}
+            className="directory-name"
+            style={{ cursor: "pointer", userSelect: "none", flex: 1 }}
+          >
+            <FolderIcon open={expanded} /> {node.name}
+          </span>
+          <button 
+            className="delete-btn" 
+            onClick={handleDeleteClick}
+            title={`Delete ${node.name}`}
+          >
+            <DeleteIcon />
+          </button>
+        </div>
         {expanded && node.children && (
           <ul className="directory-children">
             {node.children.map((child, idx) => (
-              <FileNode key={idx} node={child} />
+              <FileNode key={idx} node={child} parentPath={fullPath} onDelete={onDelete} />
             ))}
           </ul>
         )}
+        <DeleteConfirmModal
+          isOpen={showDeleteModal}
+          filePath={fullPath}
+          fileName={node.name}
+          isDirectory={true}
+          onConfirm={handleDeleteConfirm}
+          onCancel={() => setShowDeleteModal(false)}
+        />
       </li>
     );
   } else {
     return (
       <li>
-        <span className="file-name">
-          <FileIcon /> {node.name}
-        </span>
+        <div className="file-node-row">
+          <span className="file-name" style={{ flex: 1 }}>
+            <FileIcon /> {node.name}
+          </span>
+          <button 
+            className="delete-btn" 
+            onClick={handleDeleteClick}
+            title={`Delete ${node.name}`}
+          >
+            <DeleteIcon />
+          </button>
+        </div>
+        <DeleteConfirmModal
+          isOpen={showDeleteModal}
+          filePath={fullPath}
+          fileName={node.name}
+          isDirectory={false}
+          onConfirm={handleDeleteConfirm}
+          onCancel={() => setShowDeleteModal(false)}
+        />
       </li>
     );
   }
@@ -323,7 +480,7 @@ function ServerFilesView({ credentials }) {
       ) : (
         <ul>
           {dirTree.map((node, idx) => (
-            <FileNode key={idx} node={node} />
+            <FileNode key={idx} node={node} onDelete={fetchDirectory} />
           ))}
         </ul>
       )}

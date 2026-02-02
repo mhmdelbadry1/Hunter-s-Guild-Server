@@ -1018,6 +1018,36 @@ a {
 /* ------------------------ */
 /* File Node Styles         */
 /* ------------------------ */
+.file-node-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+}
+
+.file-node-row:hover .delete-btn {
+  opacity: 1;
+}
+
+.delete-btn {
+  background: transparent;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  opacity: 0;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.delete-btn:hover {
+  background: #ef4444;
+  color: #fff;
+}
+
 .directory-name {
   cursor: pointer;
   font-weight: bold;
@@ -1025,6 +1055,175 @@ a {
 
 .directory-children {
   margin-left: 20px;
+}
+
+/* ------------------------ */
+/* Delete Confirmation Modal */
+/* ------------------------ */
+.delete-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10000;
+  backdrop-filter: blur(4px);
+}
+
+.delete-modal {
+  background: linear-gradient(145deg, #1a1a2e, #16213e);
+  border: 1px solid #333;
+  border-radius: 12px;
+  padding: 2rem;
+  max-width: 420px;
+  width: 90%;
+  position: relative;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  animation: modalSlideIn 0.2s ease-out;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.delete-modal-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: transparent;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.delete-modal-close:hover {
+  background: #333;
+  color: #fff;
+}
+
+.delete-modal h2 {
+  color: #ef4444;
+  font-family: "Press Start 2P", monospace;
+  font-size: 1rem;
+  text-align: center;
+  margin: 0 0 1rem 0;
+}
+
+.delete-modal-file {
+  text-align: center;
+  font-family: monospace;
+  font-size: 1rem;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 0.75rem;
+  border-radius: 6px;
+  margin: 0.5rem 0;
+  word-break: break-all;
+}
+
+.delete-modal-warning {
+  text-align: center;
+  color: #f87171;
+  font-size: 0.85rem;
+  margin: 0.75rem 0 1.5rem 0;
+}
+
+.delete-modal-label {
+  display: block;
+  color: #888;
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+}
+
+.delete-modal-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: #0a0a1a;
+  border: 1px solid #333;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 1rem;
+  box-sizing: border-box;
+  transition: border-color 0.2s;
+}
+
+.delete-modal-input:focus {
+  outline: none;
+  border-color: #ef4444;
+}
+
+.delete-modal-input::placeholder {
+  color: #555;
+}
+
+.delete-modal-error {
+  color: #ef4444;
+  font-size: 0.85rem;
+  text-align: center;
+  margin: 0.75rem 0 0 0;
+  background: rgba(239, 68, 68, 0.1);
+  padding: 0.5rem;
+  border-radius: 4px;
+}
+
+.delete-modal-buttons {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.delete-modal-cancel {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  background: #333;
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.delete-modal-cancel:hover:not(:disabled) {
+  background: #444;
+}
+
+.delete-modal-confirm {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.delete-modal-confirm:hover:not(:disabled) {
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+  transform: translateY(-1px);
+}
+
+.delete-modal-confirm:disabled,
+.delete-modal-cancel:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* ------------------------ */
