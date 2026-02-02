@@ -201,30 +201,44 @@ a {
 
   /* IP Card Mobile */
   .ip-card {
-    flex-direction: column;
-    gap: 5px;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    gap: 8px;
     padding: 10px 15px;
     width: auto;
-    max-width: 90%;
+    max-width: 95%;
+    justify-content: center;
+  }
+
+  .ip-label {
+    font-size: 0.8rem;
   }
 
   .ip-address {
-    font-size: 0.8rem;
-    word-break: break-all;
+    font-size: 0.75rem;
+  }
+
+  .ip-refresh-btn {
+    font-size: 1rem;
+    padding: 3px;
   }
 
   .hero-image {
-    display: block; /* Show image! */
+    display: block;
     position: relative;
     align-self: center;
     margin-top: 20px;
-    width: 80%; /* Smaller image */
+    width: auto;
+    max-width: 90%;
+    min-width: 280px;
     right: auto;
     bottom: auto;
   }
 
   .hero-image img {
-    max-width: 100%;
+    width: 100%;
+    min-width: 280px;
+    height: auto;
   }
 
   .landing-container {
@@ -236,52 +250,116 @@ a {
 /* For screens up to 480px (mobile phones) */
 @media (max-width: 480px) {
   .hero-content h1 {
-    font-size: 1.4rem;
-    line-height: 1.4;
+    font-size: 1.3rem;
+    line-height: 1.3;
   }
 
   .hero-section {
-    padding: 15px 10px;
+    padding: 15px 8px;
     min-height: auto;
   }
 
   .hero-content {
     margin: 15px auto;
     padding: 0 5px;
+    width: 100%;
   }
 
   .hero-subtitle {
-    font-size: 0.85rem;
+    font-size: 0.8rem;
   }
 
   .hero-buttons {
     flex-direction: column;
     width: 100%;
     align-items: center;
+    gap: 8px;
   }
 
   .hero-buttons .btn {
-    width: 80%;
+    width: 85%;
     text-align: center;
-    font-size: 0.65rem;
+    font-size: 0.6rem;
+    padding: 10px 12px;
   }
 
   .ip-card {
-    width: 90%;
-    padding: 8px 12px;
+    width: auto;
+    max-width: 95%;
+    padding: 8px 10px;
+    gap: 6px;
+    flex-wrap: nowrap;
   }
 
   .ip-label {
-    font-size: 0.75rem;
-  }
-
-  .ip-address {
     font-size: 0.7rem;
   }
 
+  .ip-address {
+    font-size: 0.6rem;
+  }
+
+  .ip-refresh-btn {
+    font-size: 0.9rem;
+    padding: 2px;
+  }
+
   .hero-image {
-    width: 90%;
+    width: auto;
+    max-width: 95%;
+    min-width: 250px;
     margin-top: 15px;
+  }
+
+  .hero-image img {
+    min-width: 250px;
+  }
+}
+
+/* For very small screens under 400px */
+@media (max-width: 400px) {
+  .hero-content h1 {
+    font-size: 1.1rem;
+    line-height: 1.3;
+  }
+
+  .hero-section {
+    padding: 10px 5px;
+  }
+
+  .hero-subtitle {
+    font-size: 0.75rem;
+  }
+
+  .hero-buttons .btn {
+    width: 90%;
+    font-size: 0.55rem;
+    padding: 8px 10px;
+  }
+
+  .ip-card {
+    padding: 6px 8px;
+    gap: 5px;
+  }
+
+  .ip-label {
+    font-size: 0.6rem;
+  }
+
+  .ip-address {
+    font-size: 0.55rem;
+  }
+
+  .ip-refresh-btn {
+    font-size: 0.8rem;
+  }
+
+  .hero-image {
+    min-width: 220px;
+  }
+
+  .hero-image img {
+    min-width: 220px;
   }
 }
 
@@ -297,25 +375,55 @@ a {
   position: relative;
   padding: 60px 40px;
   background: #000;
-  min-height: 80vh; /* Reduced height as requested */
+  min-height: 80vh;
   overflow: hidden;
-  display: flex; /* Side-by-side */
-  align-items: center; /* Center text vertically */
+  display: flex;
+  align-items: center;
   justify-content: space-between;
   padding-bottom: 0;
+  width: 100%;
+  max-width: 100vw;
+}
+
+/* ThreeJS Canvas Container */
+.hero-section canvas {
+  position: absolute !important;
+  top: 0;
+  left: 0;
+  width: 100% !important;
+  height: 100% !important;
+  z-index: 0;
+}
+
+#hero-canvas-container {
+  position: absolute !important;
+  top: 0;
+  left: 0;
+  width: 100% !important;
+  height: 100% !important;
+  z-index: 0;
+  pointer-events: none;
 }
 
 .hero-image {
-  align-self: flex-end; /* Push ONLY image to the bottom */
+  align-self: flex-end;
   z-index: 2;
   position: relative;
+  flex-shrink: 0;
+  min-width: 300px;
+}
+
+.hero-image img {
+  max-width: 100%;
+  height: auto;
+  min-width: 250px;
 }
 
 .hero-content {
   max-width: 600px;
-  margin-top: 80px; /* Raised from 120px */
+  margin-top: 80px;
   margin-left: 100px;
-  z-index: 1;
+  z-index: 3;
   position: relative;
 }
 
@@ -1777,7 +1885,6 @@ a {
 }
 
 /* IP Display Styles */
-/* IP Display Styles */
 .ip-card {
   display: inline-flex;
   align-items: center;
@@ -1789,10 +1896,13 @@ a {
   cursor: pointer;
   transition: all 0.3s ease;
   -webkit-backdrop-filter: blur(5px);
-          backdrop-filter: blur(5px);
+  backdrop-filter: blur(5px);
   margin-top: 15px;
   position: relative;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  max-width: 100%;
 }
 
 .ip-card:hover {
@@ -1810,6 +1920,7 @@ a {
   color: #ccc;
   font-size: 0.9rem;
   font-weight: bold;
+  flex-shrink: 0;
 }
 
 .ip-address {
@@ -1817,6 +1928,8 @@ a {
   font-family: "Press Start 2P", monospace;
   font-size: 1rem;
   letter-spacing: 1px;
+  flex-shrink: 1;
+  min-width: 0;
 }
 
 .ip-refresh-btn {
@@ -1832,6 +1945,7 @@ a {
   align-items: center;
   justify-content: center;
   transition: all 0.3s ease;
+  flex-shrink: 0;
 }
 
 .ip-refresh-btn:hover:not(:disabled) {

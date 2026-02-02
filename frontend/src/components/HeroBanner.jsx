@@ -184,13 +184,32 @@ const HeroBanner = () => {
       scene.add(mesh);
 
       try {
-        renderer = new THREE.WebGLRenderer({ alpha: true, antialias: false });
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        // Check WebGL support first
+        const canvas = document.createElement('canvas');
+        const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+        if (!gl) {
+          console.warn("WebGL not supported, skipping particle effects");
+          return;
+        }
+        
+        renderer = new THREE.WebGLRenderer({ 
+          alpha: true, 
+          antialias: false,
+          powerPreference: "low-power",
+          failIfMajorPerformanceCaveat: true 
+        });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5)); // Limit pixel ratio for performance
         renderer.setSize(container.clientWidth, container.clientHeight);
+        renderer.domElement.style.position = "absolute";
+        renderer.domElement.style.top = "0";
+        renderer.domElement.style.left = "0";
+        renderer.domElement.style.width = "100%";
+        renderer.domElement.style.height = "100%";
+        renderer.domElement.style.pointerEvents = "none";
         container.appendChild(renderer.domElement);
       } catch (error) {
-        console.error("WebGL initialization failed:", error);
-        return; // Exit if WebGL fails
+        console.warn("WebGL initialization failed:", error);
+        return; // Exit gracefully if WebGL fails
       }
 
       // Initial resize
@@ -324,12 +343,14 @@ const HeroBanner = () => {
       ref={containerRef}
       style={{
         width: "100%",
-        height: "100%", // Fill parent
-        position: "relative",
+        height: "100%",
+        position: "absolute",
+        top: 0,
+        left: 0,
         overflow: "hidden",
-        borderRadius: "8px",
-        marginBottom: "20px",
-        background: "#050505",
+        background: "transparent",
+        pointerEvents: "none",
+        zIndex: 0,
       }}
     />
   );
