@@ -1513,33 +1513,7 @@ async function getModrinthDownloadUrl(modId, mcVersion, loader = "forge") {
     });
 
     if (!versionsRes.data || versionsRes.data.length === 0) {
-      // Try without version filter
-      const allVersionsUrl = `https://api.modrinth.com/v2/project/${projectSlug}/version?loaders=["${loader}"]`;
-      const allVersionsRes = await axios.get(allVersionsUrl, {
-        headers: { "User-Agent": "HuntersGuild-ModpackGenerator/1.0" },
-        timeout: 5000,
-      });
-
-      if (!allVersionsRes.data || allVersionsRes.data.length === 0) return null;
-
-      // Find closest MC version
-      const targetMajor = mcVersion.split(".").slice(0, 2).join(".");
-      const matchingVersion = allVersionsRes.data.find((v) =>
-        v.game_versions.some((gv) => gv.startsWith(targetMajor)),
-      );
-
-      if (!matchingVersion) return null;
-
-      const primaryFile =
-        matchingVersion.files.find((f) => f.primary) ||
-        matchingVersion.files[0];
-      return {
-        url: primaryFile.url,
-        sha512: primaryFile.hashes.sha512,
-        sha1: primaryFile.hashes.sha1,
-        size: primaryFile.size,
-        source: "modrinth",
-      };
+      return null;
     }
 
     // Get the first (latest) version

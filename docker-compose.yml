@@ -50,6 +50,8 @@ services:
       - ADMIN_EMAIL=${ADMIN_EMAIL}
       - ADMIN_PASS=${ADMIN_PASS}
       - MC_CONTAINER_NAME=minecraft-server
+      - MC_VERSION=${MC_VERSION:-1.21.8}
+      - FORGE_VERSION=${FORGE_VERSION:-}
       - RCON_HOST=${RCON_HOST:-minecraft}
       - RCON_PORT=${RCON_PORT:-25575}
       - RCON_PASSWORD=${RCON_PASSWORD}
