@@ -1504,9 +1504,9 @@ async function generateModpackManifest() {
     const forgeVersion = process.env.FORGE_VERSION || "61.0.8";
     let domain = process.env.DOMAIN || "http://localhost";
     
-    // Ensure domain has protocol (default to http if not specified)
+    // Ensure domain has protocol (default to https for production, http for localhost)
     if (domain && !domain.startsWith('http://') && !domain.startsWith('https://')) {
-      domain = `http://${domain}`;
+      domain = domain.includes('localhost') ? `http://${domain}` : `https://${domain}`;
     }
     
     // Scan mods folder
