@@ -55,12 +55,15 @@ a {
   justify-content: space-between;
   align-items: center;
   background: #000;
-  /* Remove vertical padding since we'll use a fixed height */
   padding: 0 40px;
-  height: 60px; /* Fixed header height */
+  height: 60px;
   border-bottom: 1px solid #333;
   -webkit-animation: fadeIn 1.5s ease-in-out;
-          animation: fadeIn 1.5s ease-in-out;
+  animation: fadeIn 1.5s ease-in-out;
+  position: relative;
+  z-index: 100;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 /* Logo */
@@ -71,6 +74,7 @@ a {
   font-family: "Press Start 2P", cursive;
   display: flex;
   align-items: center;
+  flex-shrink: 0;
 }
 
 .landing-container .logo-img {
@@ -88,14 +92,16 @@ a {
   align-items: center;
   margin: 0;
   padding: 0;
+  flex-wrap: wrap;
+  justify-content: center;
 }
 
 .nav-links a {
   color: #e0e0e0;
   transition: color 0.3s ease;
   font-size: 0.95rem;
-
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .nav-links a:hover {
@@ -145,67 +151,86 @@ a {
 
 /* For screens up to 768px (tablets and large phones) */
 @media (max-width: 768px) {
+  /* Header Mobile */
   .landing-header {
-    flex-direction: column;
-    padding: 10px;
-    height: auto; /* Allow auto height for stacked header */
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    padding: 10px 15px;
+    height: auto;
+    gap: 10px;
   }
 
-  .get-started-btn {
-    display: none; /* Hide in header on small screens */
+  .logo-hunter {
+    font-size: 0.8rem;
+  }
+
+  .landing-container .logo-img {
+    width: 35px;
+    height: 35px;
+    margin-right: 10px;
   }
 
   .nav-links ul {
-    gap: 15px;
-    margin-top: 10px;
-    margin-bottom: 10px;
+    gap: 1rem;
+    font-size: 0.75rem;
   }
 
-  /* Responsive Hero Section */
+  .nav-links a {
+    font-size: 0.75rem;
+  }
+
+  .get-started-btn {
+    display: none;
+  }
+
+  /* Hero Section Mobile */
   .hero-section {
-    flex-direction: column; /* Stack vertically */
-    justify-content: center;
+    flex-direction: column;
+    justify-content: flex-start;
     align-items: center;
     text-align: center;
-    padding: 20px 15px;
+    padding: 30px 20px 20px;
     min-height: auto;
   }
 
   .hero-content {
-    margin: 20px auto; /* Center and reduce margin */
+    margin: 0 auto 20px;
     max-width: 100%;
     margin-left: 0;
-    padding: 0 10px;
+    padding: 0 15px;
+    order: 1;
   }
 
   .hero-content h1 {
-    font-size: 1.8rem; /* Smaller title */
-    word-wrap: break-word;
+    font-size: 2rem;
+    line-height: 1.3;
+    word-break: break-word;
+    overflow-wrap: break-word;
   }
 
   .hero-subtitle {
-    font-size: 0.9rem;
-    padding: 0 5px;
+    font-size: 0.95rem;
+    padding: 0 10px;
   }
 
   .hero-buttons {
-    justify-content: center; /* Center buttons */
+    justify-content: center;
     flex-wrap: wrap;
     gap: 10px;
   }
 
   .hero-buttons .btn {
-    font-size: 0.7rem;
-    padding: 10px 16px;
+    font-size: 0.75rem;
+    padding: 12px 20px;
   }
 
-  /* IP Card Mobile */
+  /* IP Card Mobile - keep on one line */
   .ip-card {
     flex-direction: row;
     flex-wrap: nowrap;
     gap: 8px;
     padding: 10px 15px;
-    width: auto;
     max-width: 95%;
     justify-content: center;
   }
@@ -215,80 +240,177 @@ a {
   }
 
   .ip-address {
-    font-size: 0.75rem;
+    font-size: 0.8rem;
   }
 
   .ip-refresh-btn {
     font-size: 1rem;
     padding: 3px;
+    flex-shrink: 0;
   }
 
+  /* Hero Image - keep it visible and sized well */
   .hero-image {
     display: block;
     position: relative;
     align-self: center;
     margin-top: 20px;
-    width: auto;
-    max-width: 90%;
-    min-width: 280px;
+    width: 100%;
+    max-width: 400px;
     right: auto;
     bottom: auto;
+    order: 2;
   }
 
   .hero-image img {
     width: 100%;
-    min-width: 280px;
     height: auto;
   }
 
   .landing-container {
     margin: 0 auto;
     width: 100%;
+    overflow-x: hidden;
   }
 }
 
 /* For screens up to 480px (mobile phones) */
 @media (max-width: 480px) {
-  .hero-content h1 {
-    font-size: 1.3rem;
-    line-height: 1.3;
+  /* Header Small Mobile */
+  .landing-header {
+    padding: 8px 10px;
+    gap: 8px;
   }
 
+  .logo-hunter {
+    font-size: 0.65rem;
+  }
+
+  .landing-container .logo-img {
+    width: 30px;
+    height: 30px;
+    margin-right: 8px;
+  }
+
+  .nav-links ul {
+    gap: 0.6rem;
+  }
+
+  .nav-links a {
+    font-size: 0.65rem;
+  }
+
+  /* Hero Section Small Mobile */
   .hero-section {
-    padding: 15px 8px;
-    min-height: auto;
+    padding: 20px 15px 15px;
   }
 
   .hero-content {
-    margin: 15px auto;
-    padding: 0 5px;
-    width: 100%;
+    margin: 0 auto 15px;
+    padding: 0 10px;
+  }
+
+  .hero-content h1 {
+    font-size: 1.5rem;
+    line-height: 1.35;
   }
 
   .hero-subtitle {
-    font-size: 0.8rem;
+    font-size: 0.85rem;
   }
 
   .hero-buttons {
     flex-direction: column;
     width: 100%;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
   }
 
   .hero-buttons .btn {
-    width: 85%;
+    width: 90%;
+    max-width: 280px;
     text-align: center;
-    font-size: 0.6rem;
+    font-size: 0.7rem;
+    padding: 12px 15px;
+  }
+
+  /* IP Card Small Mobile */
+  .ip-card {
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    padding: 10px 15px;
+    max-width: 90%;
+  }
+
+  .ip-label {
+    font-size: 0.75rem;
+  }
+
+  .ip-address {
+    font-size: 0.85rem;
+  }
+
+  .ip-refresh-btn {
+    font-size: 1rem;
+  }
+
+  /* Hero Image Small Mobile */
+  .hero-image {
+    width: 100%;
+    max-width: 320px;
+    margin-top: 15px;
+  }
+
+  .hero-image img {
+    width: 100%;
+  }
+}
+
+/* For very small screens under 400px */
+@media (max-width: 400px) {
+  .landing-header {
+    padding: 6px 8px;
+  }
+
+  .logo-hunter {
+    font-size: 0.55rem;
+  }
+
+  .landing-container .logo-img {
+    width: 25px;
+    height: 25px;
+    margin-right: 5px;
+  }
+
+  .nav-links ul {
+    gap: 0.5rem;
+  }
+
+  .nav-links a {
+    font-size: 0.55rem;
+  }
+
+  .hero-section {
+    padding: 15px 10px 10px;
+  }
+
+  .hero-content h1 {
+    font-size: 1.3rem;
+    line-height: 1.3;
+  }
+
+  .hero-subtitle {
+    font-size: 0.8rem;
+  }
+
+  .hero-buttons .btn {
+    font-size: 0.65rem;
     padding: 10px 12px;
   }
 
   .ip-card {
-    width: auto;
-    max-width: 95%;
-    padding: 8px 10px;
-    gap: 6px;
-    flex-wrap: nowrap;
+    padding: 8px 12px;
   }
 
   .ip-label {
@@ -296,70 +418,11 @@ a {
   }
 
   .ip-address {
-    font-size: 0.6rem;
-  }
-
-  .ip-refresh-btn {
-    font-size: 0.9rem;
-    padding: 2px;
-  }
-
-  .hero-image {
-    width: auto;
-    max-width: 95%;
-    min-width: 250px;
-    margin-top: 15px;
-  }
-
-  .hero-image img {
-    min-width: 250px;
-  }
-}
-
-/* For very small screens under 400px */
-@media (max-width: 400px) {
-  .hero-content h1 {
-    font-size: 1.1rem;
-    line-height: 1.3;
-  }
-
-  .hero-section {
-    padding: 10px 5px;
-  }
-
-  .hero-subtitle {
     font-size: 0.75rem;
   }
 
-  .hero-buttons .btn {
-    width: 90%;
-    font-size: 0.55rem;
-    padding: 8px 10px;
-  }
-
-  .ip-card {
-    padding: 6px 8px;
-    gap: 5px;
-  }
-
-  .ip-label {
-    font-size: 0.6rem;
-  }
-
-  .ip-address {
-    font-size: 0.55rem;
-  }
-
-  .ip-refresh-btn {
-    font-size: 0.8rem;
-  }
-
   .hero-image {
-    min-width: 220px;
-  }
-
-  .hero-image img {
-    min-width: 220px;
+    max-width: 280px;
   }
 }
 
