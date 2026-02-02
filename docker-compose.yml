@@ -8,6 +8,8 @@ services:
       dockerfile: Dockerfile
     container_name: minecraft-server
     restart: unless-stopped
+    mem_limit: 6g
+    mem_reservation: 5g
     environment:
       - MEMORY=${MC_MEMORY:-4G}
       - TZ=${TZ:-UTC}
@@ -42,6 +44,8 @@ services:
       dockerfile: Dockerfile
     container_name: mc-api
     restart: unless-stopped
+    mem_limit: 1536m
+    mem_reservation: 512m
     environment:
       - NODE_ENV=production
       - PORT=3001
@@ -59,12 +63,6 @@ services:
       - GDRIVE_REMOTE=${GDRIVE_REMOTE:-}
       - GDRIVE_FOLDER=${GDRIVE_FOLDER:-minecraft-backups}
       - NODE_OPTIONS=--max-old-space-size=2048
-    deploy:
-      resources:
-        limits:
-          memory: 2G
-        reservations:
-          memory: 512M
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./.env:/app/.env
