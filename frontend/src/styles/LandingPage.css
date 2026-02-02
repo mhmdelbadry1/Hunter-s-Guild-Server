@@ -565,7 +565,7 @@ a {
 /* Responsive Layout Improvements */
 @media (max-width: 768px) {
   .server-control-section {
-    padding: 20px;
+    padding: 20px 15px;
   }
 
   .server-controls {
@@ -592,6 +592,7 @@ a {
     display: flex;
     flex-direction: column;
     align-items: center;
+    padding: 15px;
   }
 
   .status-details {
@@ -600,6 +601,165 @@ a {
     align-items: center;
     justify-content: center;
     width: 100%;
+  }
+
+  /* Control Grid Responsive */
+  .server-controls-grid {
+    grid-template-columns: 1fr;
+    gap: 15px;
+    padding: 0 10px;
+  }
+
+  .control-group {
+    padding: 15px;
+  }
+
+  .control-group h4 {
+    font-size: 0.8rem;
+  }
+
+  .group-buttons {
+    gap: 10px;
+  }
+
+  .group-buttons .btn {
+    flex: 1 1 100%;
+    min-width: unset;
+    height: 45px;
+    font-size: 0.8rem;
+  }
+
+  /* Status Badge Mobile */
+  .status-badge-container {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .status-badge {
+    width: 100%;
+    justify-content: center;
+    padding: 10px;
+  }
+
+  .status-meta {
+    width: 100%;
+    justify-content: space-around;
+    font-size: 0.8rem;
+  }
+
+  /* Console Log Mobile */
+  .console-log {
+    padding: 15px;
+    height: 400px;
+  }
+
+  .log-display {
+    min-height: 300px;
+    max-height: 300px;
+    font-size: 0.7rem;
+  }
+
+  /* IP Card Mobile */
+  .ip-card {
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+  }
+
+  .ip-address {
+    font-size: 0.85rem;
+    word-break: break-all;
+  }
+
+  /* Modal Mobile */
+  .modal-content {
+    width: 95%;
+    padding: 20px;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  .type-selector {
+    flex-direction: column;
+  }
+
+  .type-card {
+    padding: 12px;
+  }
+}
+
+/* Extra small devices (phones, 480px and down) */
+@media (max-width: 480px) {
+  .server-control-section {
+    padding: 15px 10px;
+  }
+
+  .server-control-section h2 {
+    font-size: 1.5rem;
+  }
+
+  .server-status {
+    padding: 12px;
+  }
+
+  .server-status h3 {
+    font-size: 1.2rem;
+  }
+
+  .console-log {
+    padding: 12px;
+    height: 350px;
+  }
+
+  .log-display {
+    font-size: 0.65rem;
+    min-height: 250px;
+    max-height: 250px;
+  }
+
+  .group-buttons .btn {
+    height: 42px;
+    font-size: 0.75rem;
+    padding: 8px;
+  }
+
+  .status-badge {
+    font-size: 0.8rem;
+    padding: 8px 12px;
+  }
+
+  .ip-address {
+    font-size: 0.75rem;
+  }
+
+  .player-management {
+    padding: 15px;
+  }
+
+  .player-management li {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 10px 0;
+  }
+
+  .kick-btn {
+    width: 100%;
+  }
+}
+
+/* Large tablets and small desktops */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .server-controls-grid {
+    grid-template-columns: repeat(2, 1fr);
+    max-width: 800px;
+  }
+
+  .console-log,
+  .server-status,
+  .player-management {
+    max-width: 800px;
   }
 }
 /* Console Log */
@@ -705,18 +865,68 @@ a {
 
 .mods-modal {
   overflow-y: auto;
-
   background: #222;
   padding: 20px;
   border-radius: 8px;
   width: 80%;
   height: 80%;
   max-width: 500px;
+  max-height: 90vh;
   position: relative;
   color: #fff;
-
   scrollbar-width: thin;
   scrollbar-color: #3b3b3b #222;
+}
+
+/* Mods Modal Responsive */
+@media (max-width: 768px) {
+  .mods-modal {
+    width: 95%;
+    height: 85%;
+    padding: 15px;
+    max-width: unset;
+  }
+
+  .mods-modal h3 {
+    font-size: 1.2rem;
+    margin-bottom: 15px;
+  }
+
+  .close-modal {
+    font-size: 1.3rem;
+    padding: 10px;
+  }
+
+  .mod-upload-section {
+    padding: 15px;
+  }
+
+  .upload-btn {
+    padding: 10px 16px;
+    font-size: 0.9rem;
+  }
+
+  .mods-list li {
+    font-size: 0.9rem;
+    padding: 8px 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .mods-modal {
+    width: 98%;
+    height: 90%;
+    padding: 12px;
+    border-radius: 6px;
+  }
+
+  .mods-modal h3 {
+    font-size: 1rem;
+  }
+
+  .mods-list li {
+    font-size: 0.85rem;
+  }
 }
 
 .close-modal {
