@@ -30,6 +30,7 @@ body,
     );
   background-color: #000;
   color: #e0e0e0;
+  overflow-x: hidden; /* Prevent horizontal scrolling */
 }
 
 a {
@@ -39,12 +40,12 @@ a {
 
 /* Overall Container */
 .landing-container {
-  min-width: 100vh;
   display: flex;
   flex-direction: column;
   max-width: 100%; /* New maximum width */
   margin: 0 auto; /* Center the container horizontally */
   min-height: 100vh;
+  overflow-x: hidden; /* Prevent horizontal scroll */
 }
 
 /* HEADER */
