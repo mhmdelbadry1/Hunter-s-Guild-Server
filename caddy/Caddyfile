@@ -5,27 +5,38 @@
     # Modpack distribution (public access)
     handle /modpack/* {
         reverse_proxy api:3001 {
-            timeout 10m
+            transport http {
+                dial_timeout 10m
+                response_header_timeout 10m
+            }
         }
     }
     
     # API routes with extended timeout for uploads
     handle /api/* {
         reverse_proxy api:3001 {
-            timeout 15m
             header_up X-Forwarded-For {remote_host}
             header_up X-Real-IP {remote_host}
-            # Allow large request bodies for mod uploads
-            request_body {
-                max_size 2GB
+            transport http {
+                read_buffer 4096
+                write_buffer 4096
+                max_response_header 10MB
+                dial_timeout 15m
+                response_header_timeout 15m
             }
+        }
+        request_body {
+            max_size 2GB
         }
     }
     
     # Socket.IO for real-time updates
     handle /socket.io/* {
         reverse_proxy api:3001 {
-            timeout 5m
+            transport http {
+                dial_timeout 5m
+                response_header_timeout 5m
+            }
         }
     }
     
@@ -55,27 +66,38 @@
     # Modpack distribution (public access)
     handle /modpack/* {
         reverse_proxy api:3001 {
-            timeout 10m
+            transport http {
+                dial_timeout 10m
+                response_header_timeout 10m
+            }
         }
     }
     
     # API routes with extended timeout for uploads
     handle /api/* {
         reverse_proxy api:3001 {
-            timeout 15m
             header_up X-Forwarded-For {remote_host}
             header_up X-Real-IP {remote_host}
-            # Allow large request bodies for mod uploads
-            request_body {
-                max_size 2GB
+            transport http {
+                read_buffer 4096
+                write_buffer 4096
+                max_response_header 10MB
+                dial_timeout 15m
+                response_header_timeout 15m
             }
+        }
+        request_body {
+            max_size 2GB
         }
     }
     
     # Socket.IO for real-time updates
     handle /socket.io/* {
         reverse_proxy api:3001 {
-            timeout 5m
+            transport http {
+                dial_timeout 5m
+                response_header_timeout 5m
+            }
         }
     }
     
