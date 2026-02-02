@@ -41,6 +41,8 @@ patchouli_books/
 *.jar
 !minecraft-server/*.sh
 
+
+myprivatekey.pem
 # Runtime / generated files (should not be committed)
 .env
 .env.*
