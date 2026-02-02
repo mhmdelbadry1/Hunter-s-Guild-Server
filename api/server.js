@@ -39,8 +39,8 @@ const CONFIG_DIR = path.join(SERVER_DIR, "config");
 const WORLD_DIR = path.join(SERVER_DIR, "world");
 
 // Middleware
-app.use(express.json({ limit: "2gb" })); // Increase JSON body limit
-app.use(express.urlencoded({ limit: "2gb", extended: true })); // Increase URL-encoded body limit
+app.use(express.json({ limit: "50mb" })); // Reasonable limit to prevent crashes
+app.use(express.urlencoded({ limit: "50mb", extended: true })); // Reasonable limit
 app.use(cookieParser());
 app.use(
   cors({
@@ -822,7 +822,33 @@ const modUpload = multer({
 app.post(
   "/api/mods/upload",
   authenticate,
-  modUpload.array("mods"), // Changed from single("mod") to array("mods")
+  (req, res, next) => {
+    // Add custom error handling for multer
+    modUpload.array("mods")(req, res, (err) => {
+      if (err) {
+        console.error("Multer upload error:", err);
+        if (err.code === "LIMIT_FILE_SIZE") {
+          return res.status(413).json({ 
+            error: "File too large. Maximum size is 1GB per file." 
+          });
+        }
+        if (err.code === "LIMIT_FILE_COUNT") {
+          return res.status(413).json({ 
+            error: "Too many files. Maximum is 100 files at once." 
+          });
+        }
+        if (err.code === "LIMIT_UNEXPECTED_FILE") {
+          return res.status(400).json({ 
+            error: "Unexpected file field. Use 'mods' field name." 
+          });
+        }
+        return res.status(500).json({ 
+          error: "Upload failed: " + (err.message || "Unknown error")
+        });
+      }
+      next();
+    });
+  },
   (req, res) => {
     try {
       if (!req.files || req.files.length === 0) {
@@ -1867,7 +1893,29 @@ app.get("/api/modpack/download-mod/:filename", async (req, res) => {
 server.listen(PORT, () => {
   console.log(`Hunter's Guild API running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || "development"}`);
+  console.log(`Node.js max memory: ${Math.round(require('v8').getHeapStatistics().heap_size_limit / 1024 / 1024)} MB`);
 
   // Ensure query is enabled on startup
   ensureQueryEnabled();
 });
+
+// Handle uncaught errors to prevent crashes
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+  // Don't exit - try to recover
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  // Don't exit - try to recover
+});
+
+// Monitor memory usage
+setInterval(() => {
+  const usage = process.memoryUsage();
+  const heapUsedMB = Math.round(usage.heapUsed / 1024 / 1024);
+  const heapTotalMB = Math.round(usage.heapTotal / 1024 / 1024);
+  if (heapUsedMB > 1024) {
+    console.warn(`⚠️ High memory usage: ${heapUsedMB}/${heapTotalMB} MB`);
+  }
+}, 60000); // Check every minute
