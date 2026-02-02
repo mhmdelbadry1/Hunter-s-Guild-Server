@@ -1,7 +1,45 @@
 # Caddy reverse proxy configuration
 # Handles SSL automatically via Let's Encrypt
 
-{$DOMAIN:localhost} {
+{$DOMAIN} {
+    # Modpack distribution (public access)
+    handle /modpack/* {
+        reverse_proxy api:3001
+    }
+    
+    # API routes
+    handle /api/* {
+        reverse_proxy api:3001
+    }
+    
+    # Socket.IO for real-time updates
+    handle /socket.io/* {
+        reverse_proxy api:3001
+    }
+    
+    # Frontend (React app)
+    handle {
+        reverse_proxy frontend:80
+    }
+    
+    # Security headers
+    header {
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        Referrer-Policy strict-origin-when-cross-origin
+    }
+    
+    # Enable compression
+    encode gzip zstd
+    
+    # Logging
+    log {
+        output stdout
+        format console
+    }
+}
+
+:80 {
     # Modpack distribution (public access)
     handle /modpack/* {
         reverse_proxy api:3001

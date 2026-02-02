@@ -1,9 +1,23 @@
-FROM eclipse-temurin:21-jre-jammy
+FROM ubuntu:22.04
 
-# Install required tools
+# Prevent interactive prompts during package installation
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Update and install dependencies
 RUN apt-get update && \
-    apt-get install -y wget curl jq netcat-traditional && \
-    rm -rf /var/lib/apt/lists/*
+    apt-get install -y \
+    wget \
+    curl \
+    jq \
+    netcat-traditional \
+    openjdk-8-jre-headless \
+    openjdk-17-jre-headless \
+    openjdk-21-jre-headless \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set default JAVA_HOME to Java 21 (latest)
+ENV JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+ENV PATH=$JAVA_HOME/bin:$PATH
 
 # Create server directory
 WORKDIR /server
