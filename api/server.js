@@ -1502,7 +1502,12 @@ async function generateModpackManifest() {
     // Read current MC version from env
     const mcVersion = process.env.MC_VERSION || "1.21.1";
     const forgeVersion = process.env.FORGE_VERSION || "61.0.8";
-    const domain = process.env.DOMAIN || "http://localhost";
+    let domain = process.env.DOMAIN || "http://localhost";
+    
+    // Ensure domain has protocol (default to http if not specified)
+    if (domain && !domain.startsWith('http://') && !domain.startsWith('https://')) {
+      domain = `http://${domain}`;
+    }
     
     // Scan mods folder
     const modFiles = fs.existsSync(modsDir) 
