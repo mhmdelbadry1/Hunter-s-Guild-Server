@@ -73,26 +73,21 @@ case "${SERVER_TYPE}" in
     # Forge download URL structure
     FORGE_URL="https://maven.minecraftforge.net/net/minecraftforge/forge/${MC_VERSION}-${FORGE_VERSION}/forge-${MC_VERSION}-${FORGE_VERSION}-installer.jar"
     
-    if [ ! -f "libraries/net/minecraftforge/forge/${MC_VERSION}-${FORGE_VERSION}/forge-${MC_VERSION}-${FORGE_VERSION}-server.jar" ] && [ ! -f "run.sh" ]; then
+    # Check if Forge is already installed
+    FORGE_JAR="forge-${MC_VERSION}-${FORGE_VERSION}.jar"
+    
+    if [ ! -f "$FORGE_JAR" ] && [ ! -f "run.sh" ]; then
         echo "Installing Forge... this may take a few minutes."
         wget -O forge-installer.jar "$FORGE_URL"
         $JAVA_EXEC -jar forge-installer.jar --installServer
-        rm forge-installer.jar
+        rm -f forge-installer.jar
     fi
 
     echo "Starting Forge server..."
+    
+    # Modern Forge (1.17+) uses run.sh
     if [ -f "run.sh" ]; then
-        # Modern Forge (1.17+) uses run.sh
         echo "Applying memory settings: -Xms${MEMORY} -Xmx${MEMORY}"
-        
-        # We need to ensure run.sh uses our selected java
-        # A common way is to set JAVA_HOME if the script respects it, 
-        # or edit the script. But often simply being in the path is key.
-        # However, for run.sh, it usually looks for 'java' in path.
-        # We can symlink our selected java to /usr/bin/java or modify PATH?
-        # A safer bet for run.sh is to export JAVA_HOME for it if it uses it, 
-        # but let's see. Many run.sh scripts call 'java'.
-        # Since we set PATH in Dockerfile to default java, we might need to update PATH here.
         
         JAVA_HOME=$(dirname $(dirname $JAVA_EXEC))
         export JAVA_HOME
@@ -102,15 +97,18 @@ case "${SERVER_TYPE}" in
         
         chmod +x run.sh
         ./run.sh nogui
+        
+    # 1.12.2 and older Forge - uses forge-VERSION.jar
+    elif [ -f "$FORGE_JAR" ]; then
+        echo "Starting with Forge jar: $FORGE_JAR"
+        $JAVA_EXEC -Xms${MEMORY} -Xmx${MEMORY} -jar "$FORGE_JAR" nogui
+        
     else
-        # Older Forge uses the universal jar
-        FORGE_JAR=$(ls forge-*-universal.jar 2>/dev/null | head -n 1)
-        if [ -n "$FORGE_JAR" ]; then
-            $JAVA_EXEC -Xms${MEMORY} -Xmx${MEMORY} -jar "$FORGE_JAR" nogui
-        else
-            echo "Error: Forge server jar not found"
-            exit 1
-        fi
+        echo "Error: Forge server jar not found"
+        echo "Expected: $FORGE_JAR or run.sh"
+        echo "Files in directory:"
+        ls -la *.jar *.sh 2>/dev/null || echo "No jar/sh files found"
+        exit 1
     fi
     ;;
   fabric)
